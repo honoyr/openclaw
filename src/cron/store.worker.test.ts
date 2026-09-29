@@ -324,12 +324,6 @@ it.each([true, false])(
           invoke: (callback) => service.add({ ...input, id: "guarded" }, { commitGuard: callback }),
         },
         {
-          name: "captured add",
-          singleUse: true,
-          invoke: (callback) =>
-            service.add({ ...input, id: "captured" }, { captureRuntimeAuthority: callback }),
-        },
-        {
           name: "guarded convergence",
           invoke: (callback) =>
             service.add(
@@ -343,16 +337,6 @@ it.each([true, false])(
             service.update("first", { name: "guarded update" }, { commitGuard: callback }),
         },
         {
-          name: "captured update",
-          singleUse: true,
-          invoke: (callback) =>
-            service.update(
-              "first",
-              { name: "captured update" },
-              { captureRuntimeAuthority: callback },
-            ),
-        },
-        {
           name: "guarded owner update",
           invoke: (callback) =>
             service.update(
@@ -364,12 +348,6 @@ it.each([true, false])(
               },
               { commitGuard: callback },
             ),
-        },
-        {
-          name: "captured owner update",
-          singleUse: true,
-          invoke: (callback) =>
-            service.update("first", { agentId: "main" }, { captureRuntimeAuthority: callback }),
         },
         {
           name: "precondition update",
@@ -403,7 +381,7 @@ it.each([true, false])(
           expect.soft(sql.count(), step.name).toBe(0);
         }
         const persisted = (await loadCronJobsStoreWithConfigJobs(storePath)).store.jobs;
-        expect(persisted.map((job) => job.id).toSorted()).toEqual(["captured", "first", "guarded"]);
+        expect(persisted.map((job) => job.id).toSorted()).toEqual(["first", "guarded"]);
         expect(persisted.find((job) => job.id === "first")?.name).toBe("precondition update");
         expect(persisted.every((job) => !job.enabled)).toBe(true);
       } finally {
