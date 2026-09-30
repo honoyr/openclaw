@@ -10,7 +10,7 @@ import { forceKillChildProcessTree } from "../process/child-process-tree.js";
 import { getFileLockProcessStartTime, isPidAlive } from "../shared/pid-alive.js";
 import { resolveRuntimeWorkerUrl } from "./runtime-worker-url.js";
 import {
-  triageRuntimeNodeOptions,
+  triageRuntimePreloadEnv,
   useTriageLeaseDatabaseFixture,
 } from "./triage-lease-fixture.test-support.js";
 import { triageTestRuntimeEntrypoints } from "./triage-runtime.test-support.js";
@@ -216,7 +216,7 @@ function foreground(root: string, label: string, kind = "update", defer = false)
         OPENCLAW_STATE_DIR: path.join(root, ".openclaw"),
         OPENCLAW_CONFIG_PATH: path.join(root, ".openclaw/openclaw.json"),
         OPENCLAW_WORKSPACE_DIR: path.join(root, "workspace"),
-        NODE_OPTIONS: triageRuntimeNodeOptions(),
+        ...triageRuntimePreloadEnv(),
         TSX_TSCONFIG_PATH: path.resolve("tsconfig.json"),
       },
       detached: true,
@@ -624,7 +624,7 @@ unix.each([
         env: {
           ...process.env,
           OPENCLAW_UPDATE_RUN_HANDOFF: "1",
-          NODE_OPTIONS: triageRuntimeNodeOptions(),
+          ...triageRuntimePreloadEnv(),
           TSX_TSCONFIG_PATH: path.resolve("tsconfig.json"),
         },
         stdio: ["ignore", "ignore", "pipe", "ipc"],

@@ -60,6 +60,7 @@ function runUpdateProcess(root: string, args: string[], env: NodeJS.ProcessEnv =
       HTTP_PROXY: undefined,
       HTTPS_PROXY: undefined,
       NODE_DISABLE_COMPILE_CACHE: "1",
+      BUN_RUNTIME_TRANSPILER_CACHE_PATH: "0",
       NODE_ENV: undefined,
       NODE_OPTIONS: undefined,
       NO_COLOR: "1",

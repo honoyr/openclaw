@@ -2,12 +2,12 @@ import childProcess from "node:child_process";
 import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { afterEach, expect, vi } from "vitest";
 import {
   assertManagedHandoffTestConsumer,
   createManagedHandoffTestBinding,
 } from "../../test/helpers/managed-handoff-isolation.js";
+import { withRuntimePreload } from "../../test/helpers/runtime-preload.js";
 import { createTempDirTracker } from "../../test/helpers/temp-dir.js";
 import * as tempRoot from "../infra/tmp-openclaw-dir.js";
 import { resolveManagedUpdateLeaseDatabasePath } from "../infra/update-managed-service-handoff-lease.js";
@@ -76,10 +76,12 @@ export function setupDoctorAdmissionFixture() {
         JSON.stringify({ pid: process.pid, entry: process.argv[1], databasePath: expected }));
     `,
     );
-    vi.stubEnv(
-      "NODE_OPTIONS",
-      `${process.env.NODE_OPTIONS ?? ""} ${binding.nodeOption} --import=${pathToFileURL(guard).href}`.trim(),
+    const childEnv = withRuntimePreload(
+      withRuntimePreload(process.env, binding.preloadPath),
+      guard,
     );
+    vi.stubEnv("NODE_OPTIONS", childEnv.NODE_OPTIONS);
+    vi.stubEnv("BUN_OPTIONS", childEnv.BUN_OPTIONS);
     vi.spyOn(tempRoot, "resolvePreferredOpenClawTmpDir").mockReturnValue(root);
     expect(binding.assertPath(resolveManagedUpdateLeaseDatabasePath())).toBe(binding.databasePath);
     // Compiled runtime modules use native builtin exports, outside Vitest's facade.
