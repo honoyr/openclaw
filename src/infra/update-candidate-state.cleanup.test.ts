@@ -573,6 +573,7 @@ it.each(["cancel", "deadline", "disk-full", "cooperative-cancel"] as const)(
       env: { TMPDIR: root },
       workerEnv: () => ({
         ...withRuntimePreload(process.env, preload),
+        BUN_RUNTIME_TRANSPILER_CACHE_PATH: "0",
         XDG_CACHE_HOME: path.join(root, "unowned-cache"),
         OPENCLAW_DISABLE_BUNDLED_PLUGINS: "1",
       }),

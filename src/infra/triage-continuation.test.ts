@@ -178,7 +178,14 @@ process.kill=function(pid,signal){
   if(signal && signal!==0)fs.appendFileSync(${JSON.stringify(path.join(root, "signals.jsonl"))},JSON.stringify({pid,signal})+'\\n');
   return kill.call(process,pid,signal);
 };`
-    : ""
+    : `
+const timerFs=await import('node:fs'),schedule=setTimeout;
+globalThis.setTimeout=(callback,delay,...args)=>{
+  const timer=schedule(callback,delay,...args);
+  if(delay===30_000 && timerFs.existsSync(${JSON.stringify(root)}+'/'+phase+'.cancelled'))
+    timerFs.writeFileSync(${JSON.stringify(root)}+'/'+phase+'.parent.timer-armed','');
+  return timer;
+};`
 }
 const timerControl=net.createServer(socket=>socket.once('data',data=>{socket.end();mock.timers.tick(Number(String(data).slice(5)));}));
 await new Promise(resolve=>timerControl.listen(${JSON.stringify(root)}+'/'+phase+'.parent.sock',resolve));
@@ -530,7 +537,16 @@ unix.each(["abort", "owner-disconnect", "terminal-disconnect"] as const)(
       await control(root, "held", "finish");
       await vi.waitFor(() => fs.access(path.join(root, "held.finished")));
     }
-    await vi.waitFor(() => fs.access(path.join(root, "held.cancelled")), { timeout: 5000 });
+    await vi.waitFor(
+      async () => {
+        await fs.access(path.join(root, "held.cancelled"));
+        // Child cancellation can precede the parent's IPC disconnect and deadline registration.
+        if (boundary === "terminal-disconnect") {
+          await fs.access(path.join(root, "held.parent.timer-armed"));
+        }
+      },
+      { timeout: 5000 },
+    );
     const timerOwner = boundary === "owner-disconnect" ? "held" : "held.parent";
     await control(root, timerOwner, "tick:29999");
     expect(isPidAlive(executor.pid)).toBe(true);

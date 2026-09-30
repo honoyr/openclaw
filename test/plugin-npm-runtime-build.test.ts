@@ -15,7 +15,7 @@ import { runInNewContext } from "node:vm";
 import { Worker } from "node:worker_threads";
 // Plugin npm runtime build tests validate plugin runtime package builds.
 import { expectDefined } from "@openclaw/normalization-core";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, vi } from "vitest";
 import {
   buildPluginNpmRuntime,
   listMissingPluginNpmRuntimeHostExports,
@@ -30,7 +30,7 @@ import { useAutoCleanupTempDirTracker } from "./helpers/temp-dir.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const tempDirs = useAutoCleanupTempDirTracker(afterEach);
-const commandIt = createCommandTest();
+const it = createCommandTest();
 
 type PluginNpmRuntimeBuildPlan = NonNullable<ReturnType<typeof resolvePluginNpmRuntimeBuildPlan>>;
 
@@ -121,7 +121,7 @@ describe("plugin npm runtime build planning", () => {
     );
   });
 
-  commandIt.for([
+  it.for([
     ["esm", "@openclaw/telegram"],
     ["cjs", "@openclaw/telegram"],
     ["esm", "@openclaw/old-host-fixture"],

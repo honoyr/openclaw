@@ -169,7 +169,7 @@ export function installManagedHandoffTestBinding(binding: Binding) {
           ({ path: specifier, importer, kind }) => {
             // The original dependency lookup must bypass this same resolver hook.
             if (resolving) {
-              return;
+              return undefined;
             }
             assert(path.isAbsolute(importer), "Handoff consumer path must be absolute");
             const consumer = pathToFileURL(importer).href;
