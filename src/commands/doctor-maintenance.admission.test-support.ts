@@ -47,6 +47,10 @@ export function setupDoctorAdmissionFixture() {
       import sqlite from 'node:sqlite';
       import { syncBuiltinESMExports } from 'node:module';
       import { fileURLToPath } from 'node:url';
+      if (process.versions.bun) {
+        const { ensureSqliteLibrarySelected } = await import(${JSON.stringify(new URL("../infra/bun-sqlite-library.js", import.meta.url).href)});
+        ensureSqliteLibrarySelected();
+      }
       const root = ${JSON.stringify(root)};
       const expected = ${JSON.stringify(binding.databasePath)};
       const NativeDatabase = sqlite.DatabaseSync;
