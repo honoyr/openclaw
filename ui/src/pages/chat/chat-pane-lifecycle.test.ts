@@ -747,20 +747,32 @@ describe("chat pane presentation teardown", () => {
   });
 });
 
-it("settles a freshly connected pane's boot updates", async () => {
+it("settles boot and session-switch updates for freshly connected panes", async () => {
   vi.useFakeTimers();
-  const key = "agent:main:frame-boot";
-  const fixture = createMountedPanes([{ key, kind: "direct", updatedAt: 1 }]);
-  const updates = vi.spyOn(fixture.pane, "performUpdate");
-  const pane = fixture.mount(key);
-  await pane.updateComplete;
-  expect(updates).toHaveBeenCalledTimes(1);
-  await vi.dynamicImportSettled();
-  await vi.advanceTimersByTimeAsync(160);
-  await vi.dynamicImportSettled();
-  await vi.advanceTimersByTimeAsync(160);
-  console.info(`Fresh pane boot: ${updates.mock.calls.length} updates`);
-  expect(updates.mock.calls.length).toBeLessThanOrEqual(3);
-  expect(pane.querySelector(".agent-chat__composer-combobox textarea")).not.toBeNull();
-  expect(pane.state.chatLoading).toBe(false);
+  const keys = ["agent:main:frame-boot", "agent:main:frame-switch"];
+  const fixture = createMountedPanes(keys.map((key) => ({ key, kind: "direct", updatedAt: 1 })));
+  let previous: TestChatPane | undefined;
+  for (const [index, key] of keys.entries()) {
+    if (previous) {
+      Object.defineProperty(previous, "isConnected", { configurable: true, value: false });
+      previous.disconnectedCallback();
+    }
+    const pane = fixture.mount(key);
+    const updates = vi.spyOn(pane, "performUpdate");
+    await pane.updateComplete;
+    expect(updates).toHaveBeenCalledTimes(1);
+    await vi.dynamicImportSettled();
+    await vi.advanceTimersByTimeAsync(160);
+    await vi.dynamicImportSettled();
+    await vi.advanceTimersByTimeAsync(160);
+    console.info(
+      `${index === 0 ? "Fresh pane boot" : "Session switch"}: ${updates.mock.calls.length} updates`,
+    );
+    if (index === 0) {
+      expect(updates.mock.calls.length).toBeLessThanOrEqual(3);
+    }
+    expect(pane.querySelector(".agent-chat__composer-combobox textarea")).not.toBeNull();
+    expect(pane.state.chatLoading).toBe(false);
+    previous = pane;
+  }
 });

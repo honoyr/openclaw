@@ -264,11 +264,11 @@ export class ChatSessionVirtualizerHost implements ReactiveControllerHost, ChatT
       overscan: CHAT_TRANSCRIPT_OVERSCAN,
     });
     this.virtualizer = this.virtualizerController.getVirtualizer();
-    // Keep the adapter's lifecycle, but replace its deferred notification: scroll
-    // compensation must paint with its rows, without a second post-update request.
+    // Keep the adapter's lifecycle, but commit every notification before paint.
+    // Measurement-driven geometry can carry scroll compensation; sync does not identify it.
     this.virtualizer.setOptions({
       ...this.virtualizer.options,
-      onChange: (_instance, sync) => (sync ? this.requestImmediateUpdate() : this.requestUpdate()),
+      onChange: this.requestImmediateUpdate,
     });
     this.presentation = new TranscriptPresentation(this, this.virtualizer, callbacks, () =>
       this.measureConnectedRows(),
