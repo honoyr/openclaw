@@ -1,0 +1,136 @@
+# Temporary proof workflow for the orphaned macOS test reader fix. Never merged.
+name: Proof macOS test orphaned readers
+
+on:
+  push:
+    branches: [proof/macos-test-orphaned-readers]
+
+permissions:
+  contents: read
+
+jobs:
+  suites:
+    runs-on: xcode-27
+    timeout-minutes: 120
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          source scripts/lib/swift-toolchain.sh
+          select_xcode_toolchain
+          sysctl -n hw.logicalcpu
+          git log --oneline -2
+
+      - name: Setup Node environment for Apple assets
+        uses: ./.github/actions/setup-node-env
+        with:
+          node-version: "24.21.0"
+          cache-mode: "off"
+          install-bun: "false"
+          install-deps: "false"
+
+      - name: Install Mermaid renderer dependencies
+        env:
+          CI: "true"
+        run: >-
+          pnpm install --frozen-lockfile --prefer-offline --optional
+          --filter '@openclaw/mermaid-renderer...'
+          --config.ignore-scripts=false
+          --config.engine-strict=false
+          --config.enable-pre-post-scripts=true
+          --config.side-effects-cache=true
+
+      - name: Prepare Apple Mermaid assets and baseline tree
+        run: |
+          set -euo pipefail
+          node scripts/prepare-apple-mermaid.mjs
+          # Baseline keeps the new regression but restores the fake that ignores cancellation.
+          git worktree add --detach baseline HEAD
+          resources=apps/shared/OpenClawKit/Sources/OpenClawChatUI/Resources
+          cp -R "$resources/Mermaid" "baseline/$resources/Mermaid"
+          perl -pi -e 's/if self\.closed \|\| Task\.isCancelled \{/if self.closed {/' \
+            baseline/apps/macos/Tests/OpenClawIPCTests/TalkMLXSpeechSynthesizerTests.swift
+          git -C baseline diff --stat
+
+      - name: Build candidate and baseline tests
+        run: |
+          set -euo pipefail
+          for dir in . baseline; do
+            start=$(date +%s)
+            swift build --package-path "$dir/apps/macos" --build-system native --enable-code-coverage \
+              --disable-index-store -Xswiftc -gline-tables-only --build-tests
+            echo "build $dir seconds=$(( $(date +%s) - start ))"
+          done
+
+      - name: Focused and full suites
+        run: |
+          set +e
+          width="$(sysctl -n hw.logicalcpu)"
+          logdir="$RUNNER_TEMP/proof"
+          mkdir -p "$logdir"
+          run() {
+            local dir="$1" label="$2"; shift 2
+            local start=$(date +%s)
+            (cd "$dir" && node scripts/test-macos-native.mts default --package-path apps/macos --build-system native \
+              --enable-code-coverage --disable-index-store -Xswiftc -gline-tables-only --skip-build \
+              --experimental-maximum-parallelization-width "$width" "$@") > "$logdir/$label.log" 2>&1
+            local rc=$?
+            echo "::group::$label rc=$rc seconds=$(( $(date +%s) - start )) leaks=$(grep -c 'CONTINUATION MISUSE' "$logdir/$label.log")"
+            grep -E "recorded an issue|Time limit|Still waiting|CONTINUATION MISUSE|abandoned stale read|Test run with" "$logdir/$label.log" | cut -c1-300 | head -40
+            echo "::endgroup::"
+            echo "$label rc=$rc leaks=$(grep -c 'CONTINUATION MISUSE' "$logdir/$label.log")" >> "$logdir/summary.txt"
+          }
+          run . candidate-focused --filter "TalkMLXSpeechSynthesizerTests|GatewayChannelRequestTests"
+          run baseline baseline-focused --filter "TalkMLXSpeechSynthesizerTests"
+          run . candidate-full --skip "AppStateIsolationTests|ProfileChatPreferencesTests|QuickChatCatalogPresentationTests"
+          cat "$logdir/summary.txt"
+          exit 0
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: orphaned-readers-proof
+          path: ${{ runner.temp }}/proof/*
+          if-no-files-found: ignore
+
+  webkit-load:
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build probe
+        run: |
+          set -euo pipefail
+          source scripts/lib/swift-toolchain.sh
+          select_xcode_toolchain
+          xcrun swiftc -Onone -swift-version 6 .github/proof-webkit/probe.swift -o "$RUNNER_TEMP/probe"
+
+      - name: WebKit data store under normal-priority saturation only
+        run: |
+          set +e
+          cpu="$(sysctl -n hw.logicalcpu)"
+          probe="$RUNNER_TEMP/probe"
+          load=()
+          for _ in $(seq 1 $(( cpu * 4 ))); do yes > /dev/null & load+=("$!"); done
+          sleep 5
+          for round in 1 2 3; do
+            for nsapp in 0 1; do
+              echo "== nice0-only round=$round nsapp=$nsapp"
+              "$probe" "$nsapp" 240 | grep -E "RESULT|dataStoreLatency=[0-9]{2,}"
+              echo "exit=$?"
+              pkill -f com.apple.WebKit.WebContent 2>/dev/null
+            done
+          done
+          kill "${load[@]}" 2>/dev/null
+          wait 2>/dev/null
+          exit 0
