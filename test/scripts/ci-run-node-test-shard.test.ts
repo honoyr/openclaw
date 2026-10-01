@@ -607,6 +607,7 @@ describe("scripts/ci-run-node-test-shard.mts", () => {
       const nodeFiles = [
         skippedOnBun,
         v8HeapTest,
+        "src/plugin-sdk/provider-catalog-shared.retention.test.ts",
         "src/plugins/runtime.retention.test.ts",
         "src/agents/code-mode-node.test.ts",
         nodeHistoryBenchmark,
@@ -615,7 +616,11 @@ describe("scripts/ci-run-node-test-shard.mts", () => {
         mixedCompilerTest,
         "src/auto-reply/reply/get-reply.imports.test.ts",
       ];
-      const bunFiles = [bunTarget, missingDockerTest];
+      const bunFiles = [
+        bunTarget,
+        missingDockerTest,
+        "src/plugin-sdk/provider-catalog-shared.cancellation.test.ts",
+      ];
       const includePatterns = [...bunFiles, ...nodeFiles];
       const shard = {
         configs: [bunConfig],
