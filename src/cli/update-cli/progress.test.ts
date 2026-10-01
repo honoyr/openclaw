@@ -126,7 +126,7 @@ describe("update progress", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it.each(["stop", "pause", "suspend", "dispose"] as const)(
+  it.each(["stop", "suspend", "dispose"] as const)(
     "clears redirected elapsed notices on %s",
     async (operation) => {
       vi.useFakeTimers();
@@ -431,8 +431,6 @@ describe("update progress", () => {
     expect(log).toHaveBeenCalledWith("Phase: verifying");
     expect(log).toHaveBeenCalledWith("Phase: restarting");
     expect(log).not.toHaveBeenCalledWith("Phase: repairing");
-    presentation.pause();
-    expect(vi.getTimerCount()).toBe(0);
     run.phase = "finished";
     run.status = "succeeded";
     run.after = { version: "2026.9.3" };

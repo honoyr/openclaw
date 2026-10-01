@@ -135,12 +135,10 @@ export async function initializeAndRunUpdate(
                 env,
                 runId,
                 executor,
-                retainPresentation: (dispose) => {
-                  disposePresentation = dispose;
-                },
                 callerLegacyConfigPlan,
-                registerRun: async (run) => {
+                registerRun: async (run, dispose) => {
                   registerRun(run);
+                  disposePresentation = dispose;
                   for (const result of selectedTarget?.preflightSteps ?? []) {
                     for (const step of updateRunStepsFromResultStep(result)) {
                       recordUpdateCommandTarget(run, { step });
@@ -542,6 +540,7 @@ export async function initializeAndRunUpdate(
     // executor, so no failure is reported while either mutation owner remains live.
     await handleFailure(error);
   } finally {
+    // Terminal publication must flush the last committed phases before observation ends.
     disposePresentation?.();
   }
 }

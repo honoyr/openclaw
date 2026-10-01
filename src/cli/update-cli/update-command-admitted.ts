@@ -79,17 +79,14 @@ export async function runAdmittedUpdate(
     runId: run.runId,
   };
   recoveryState.triageTarget.root = prepared.discoveredRoot;
-  let settlePresentation: (() => void) | undefined;
+  let disposePresentation: (() => void) | undefined;
   let executionStarted = false;
   try {
     assertInitializationCurrent?.();
     run.executorFence = initializedFence;
-    await initialization?.registerRun(run);
+    await initialization?.registerRun(run, () => disposePresentation?.());
     const presentation = createUpdateProgress(!opts.json, run);
-    // Initialized commands publish after this scope exits. Stop observation here,
-    // but keep their final flush alive until the enclosing terminal owner settles.
-    initialization?.retainPresentation(presentation.dispose);
-    settlePresentation = initialization ? presentation.pause : presentation.dispose;
+    disposePresentation = presentation.dispose;
     const executeWith = (executor: UpdateCommandExecutor) =>
       withUpdatePreviewSignals(opts, async () => {
         await admitUpdateRequesterContinuation(
@@ -155,6 +152,8 @@ export async function runAdmittedUpdate(
     }
     throw error;
   } finally {
-    settlePresentation?.();
+    if (!initialization) {
+      disposePresentation?.();
+    }
   }
 }

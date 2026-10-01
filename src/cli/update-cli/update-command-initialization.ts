@@ -35,8 +35,10 @@ export type UpdateTargetSelection =
 export type InitializedUpdate = UpdateInitializationAdmission &
   UpdateTargetSelection & {
     executor: UpdateCommandExecutor;
-    registerRun: (run: NonNullable<UpdateCommandOptions["run"]>) => Promise<void>;
-    retainPresentation: (dispose: () => void) => void;
+    registerRun: (
+      run: NonNullable<UpdateCommandOptions["run"]>,
+      disposePresentation: () => void,
+    ) => Promise<void>;
     stagedPackage?: StagedPackageInstallUpdate;
     candidateAdmission?: StagedUpdateCandidateAdmission;
     downgradeConfirmed?: boolean;
