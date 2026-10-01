@@ -48,6 +48,7 @@ import {
 } from "./update-capture-privacy-marker.js";
 import { createUpdateDatabaseBackup } from "./update-database-backup.js";
 import { readUpdateDatabaseGenerations } from "./update-database-generations.js";
+import type { UpdateRecoveryCaptureAcquisition } from "./update-recovery-capture-acquisition.js";
 import { readUpdateRunDriver, type UpdateRunDriver } from "./update-run-driver.js";
 import { getUpdateRunAsync } from "./update-run-reader.js";
 
@@ -62,10 +63,6 @@ export type UpdateRecoveryBaselineRef = {
   manifestPath: string;
   manifestSha256: string;
 };
-
-export type UpdateRecoveryCaptureAcquisition =
-  | { mode: "isolated-steps" }
-  | { mode: "maintenance-owner" };
 
 function within(candidate: string, root: string): boolean {
   const relative = path.relative(root, candidate);

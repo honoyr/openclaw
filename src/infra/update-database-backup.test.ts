@@ -17,10 +17,8 @@ import * as candidateState from "./update-candidate-state.js";
 import * as databaseSizes from "./update-candidate-state.sizes.js";
 import { resolveUpdateCaptureRoot } from "./update-capture-paths.js";
 import { createUpdateDatabaseBackupInProcess } from "./update-database-backup.js";
-import {
-  retireExpiredStandaloneDoctorCaptures,
-  type UpdateRecoveryCaptureAcquisition,
-} from "./update-recovery-baseline-capture.js";
+import { retireExpiredStandaloneDoctorCaptures } from "./update-recovery-baseline-capture.js";
+import type { UpdateRecoveryCaptureAcquisition } from "./update-recovery-capture-acquisition.js";
 import { getUpdateRunAsync } from "./update-run-reader.js";
 
 const dirs = useAutoCleanupTempDirTracker(afterEach);
