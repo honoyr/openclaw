@@ -606,6 +606,8 @@ describe("syncWorkspaceSkills", () => {
       await fs.writeFile(outsideFile, "outside", { mode: 0o444 });
       await fs.symlink(outsideDir, path.join(staleDir, "linked-directory"));
       await fs.symlink(outsideFile, path.join(staleDir, "linked-file"));
+      await fs.symlink(outsideDir, path.join(targetSkillsDir, "linked-directory"));
+      await fs.symlink(outsideFile, path.join(targetSkillsDir, "linked-file"));
       await fs.chmod(outsideDir, 0o555);
       await fs.chmod(nestedDir, 0o555);
       await fs.chmod(staleDir, 0o555);
@@ -618,13 +620,17 @@ describe("syncWorkspaceSkills", () => {
           "Workspace version",
         );
         expect(await pathExists(nestedDir)).toBe(false);
+        expect(await pathExists(path.join(targetSkillsDir, "linked-directory"))).toBe(false);
+        expect(await pathExists(path.join(targetSkillsDir, "linked-file"))).toBe(false);
         expect(await fs.readFile(outsideFile, "utf8")).toBe("outside");
         expect((await fs.stat(outsideDir)).mode & 0o777).toBe(0o555);
         expect((await fs.stat(outsideFile)).mode & 0o777).toBe(0o444);
         expect((await fs.stat(staleDir)).mode & 0o022).toBe(0);
       } finally {
         await fs.chmod(outsideDir, 0o755);
-        await fs.chmod(staleDir, 0o755);
+        if (await pathExists(staleDir)) {
+          await fs.chmod(staleDir, 0o755);
+        }
         if (await pathExists(nestedDir)) {
           await fs.chmod(nestedDir, 0o755);
         }

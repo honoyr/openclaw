@@ -252,7 +252,9 @@ export async function syncWorkspaceSkills(params: {
     );
     for (const child of await fsp.readdir(targetSkillsDir)) {
       if (!preservedDestinations.has(child)) {
-        await ensureWritableSkillDirectories(targetSkillsDir, child);
+        if ((await fsp.lstat(path.join(targetSkillsDir, child))).isDirectory()) {
+          await ensureWritableSkillDirectories(targetSkillsDir, child);
+        }
         await removePathWithinRoot({
           rootDir: targetDir,
           relativePath: path.join("skills", child),
