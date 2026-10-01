@@ -185,10 +185,13 @@ function realtimeTalkMicrophonePermissionState(): Promise<PermissionState | unde
     return undefined;
   }
   try {
-    return permissions
-      .query({ name: "microphone" as PermissionName })
-      .then((status) => status.state)
-      .catch(() => undefined);
+    return (
+      permissions
+        // SAFETY: Chromium supports the microphone descriptor although lib.dom omits it.
+        .query({ name: "microphone" as PermissionName })
+        .then((status) => status.state)
+        .catch(() => undefined)
+    );
   } catch {
     return undefined;
   }
