@@ -261,7 +261,7 @@ function retainCommandProcess(
       readiness = Promise.resolve();
     } catch (error) {
       bindingError = { error };
-      readiness = Promise.reject(toErrorObject(error));
+      readiness = Promise.reject(toErrorObject(error, "Command process custody admission failed"));
     }
   }
   commandAdmissions.set(nativeChild, readiness);
