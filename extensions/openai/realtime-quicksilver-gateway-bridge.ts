@@ -257,7 +257,7 @@ export class OpenAIQuicksilverGatewayBridge implements RealtimeVoiceBridge {
     connectSignal: AbortSignal,
   ): Promise<void> {
     this.transport = "direct";
-    const ready = createDeferred<void>();
+    const ready = createDeferred();
     this.delegations = this.createDelegationController({
       onSessionStarted: ready.resolve,
     });

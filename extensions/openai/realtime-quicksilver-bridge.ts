@@ -190,7 +190,7 @@ export class OpenAIQuicksilverVoiceBridge implements RealtimeVoiceBridge {
     let reachedReady = false;
     let readySettled = false;
     let removeAbortListener = () => {};
-    const ready = createDeferred<void>();
+    const ready = createDeferred();
     const settleReady = (providerReady = true, error?: Error) => {
       if (readySettled) {
         return;
@@ -627,7 +627,7 @@ export class OpenAIQuicksilverVoiceBridge implements RealtimeVoiceBridge {
     const socket = this.socket;
     let drain: ReturnType<typeof createDeferred<void>> | undefined;
     if (isOpenAIGptLiveApiModel(this.config.model)) {
-      drain = createDeferred<void>();
+      drain = createDeferred();
       const completion = drain.promise;
       this.closing = { connection, completion };
       void completion.catch(() =>

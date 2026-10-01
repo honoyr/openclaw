@@ -288,6 +288,7 @@ export function createUpstreamProviderCatalog(params: {
     buildStaticProvider,
     refreshMetadata,
     async resolveStarterModel(
+      this: void,
       request: Pick<UpstreamProviderCatalogRequest, "fetchGuard" | "signal"> & {
         apiKey: string;
         preferredModelRef: string;
@@ -306,6 +307,7 @@ export function createUpstreamProviderCatalog(params: {
       return liveModelIds.includes(preferredModelId) ? request.preferredModelRef : undefined;
     },
     async buildLiveProvider(
+      this: void,
       request: UpstreamProviderCatalogRequest = {},
     ): Promise<ModelProviderConfig> {
       if (!request.apiKey && !request.discoveryApiKey) {
