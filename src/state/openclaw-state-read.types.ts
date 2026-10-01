@@ -43,7 +43,7 @@ import type {
   ConsumeCronStandingGrantResult,
   CronStandingGrantListing,
   CronStandingGrantLookupParams,
-} from "../gateway/operator-approval-standing-grants.js";
+} from "../gateway/operator-approval-standing-grants.types.js";
 import type {
   ListTerminalOperatorApprovalsInput,
   ListTerminalOperatorApprovalsResult,

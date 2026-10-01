@@ -23,7 +23,7 @@ export * from "./exec-approvals-allowlist.js";
 export * from "./exec-approvals-core.js";
 export * from "./exec-approvals-generated-migration.js";
 export type { ExecApprovalPolicySnapshot } from "./exec-approval-policy-snapshot.js";
-export type { ExecAllowlistEntry } from "./exec-approvals.types.js";
+export type { AllowAlwaysPattern, ExecAllowlistEntry } from "./exec-approvals.types.js";
 export type { ExecApprovalsDefaultOverrides } from "./exec-approvals-contracts.js";
 export {
   DEFAULT_EXEC_APPROVAL_ASK_FALLBACK,
@@ -190,15 +190,11 @@ export {
   resolveExecApprovalUnavailableDecisions,
 } from "./exec-approvals-policy.js";
 export {
-  addAllowlistEntry,
-  addDurableCommandApproval,
   createExecApprovalPolicySnapshot,
   hasDurableExecApproval,
   hasExactCommandDurableExecApproval,
   hasNodeCommandAllowAlwaysMarker,
   isExecApprovalPolicySnapshotCurrent,
-  persistAllowAlwaysDecision,
-  persistAllowAlwaysPatterns,
   resolveAllowAlwaysPatternCoverage,
   resolveAllowAlwaysPersistenceDecision,
   resolveDurableExecApprovalRequirement,
@@ -208,6 +204,10 @@ export type {
   AllowAlwaysPersistenceReason,
 } from "./exec-approvals-contracts.js";
 export {
+  addAllowlistEntry,
+  addDurableCommandApproval,
+  persistAllowAlwaysDecision,
+  persistAllowAlwaysPatterns,
   commitExecAuthorizationLocked,
   recordAllowlistMatchesUse,
   recordAllowlistUse,

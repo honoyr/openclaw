@@ -26,7 +26,14 @@ import {
   type OpenClawStateDatabase,
   type OpenClawStateDatabaseOptions,
 } from "../state/openclaw-state-db.js";
-import type { CronStandingGrantMintSpec } from "./operator-approval-standing-grants.types.js";
+import type {
+  CronStandingGrantMintSpec,
+  CronStandingGrantRecord,
+  ConsumeCronStandingGrantResult,
+  CronStandingGrantLookupParams,
+  CronStandingGrantListing,
+  RevokeCronStandingGrantResult,
+} from "./operator-approval-standing-grants.types.js";
 
 const STANDING_GRANT_TABLE = "operator_approval_standing_grants";
 const STANDING_GRANT_GENERATION_TABLE = "operator_approval_standing_grant_generations";
@@ -69,16 +76,6 @@ type StandingGrantDatabase = Pick<
   | "cron_jobs"
 >;
 
-type CronStandingGrantRecord = CronStandingGrantMintSpec & {
-  grantId: string;
-  mintedByApprovalId: string;
-  createdAtMs: number;
-  /** NULL means the grant lives until revoked or superseded. */
-  expiresAtMs: number | null;
-  lastUsedAtMs: number | null;
-  useCount: number;
-};
-
 function projectCronStandingGrant(
   row: Selectable<StandingGrantDatabase[typeof STANDING_GRANT_TABLE]>,
 ): CronStandingGrantRecord {
@@ -95,19 +92,6 @@ function projectCronStandingGrant(
     useCount: row.use_count,
   };
 }
-
-export type ConsumeCronStandingGrantResult =
-  | { outcome: "consumed"; grant: CronStandingGrantRecord }
-  | {
-      outcome:
-        | "no-grant"
-        | "revoked"
-        | "expired"
-        | "job-missing"
-        | "job-revision-changed"
-        | "approval-missing"
-        | "approval-not-allow-always";
-    };
 
 /**
  * Exact gateway-exec operation binding: trimmed command text, cwd, and the
@@ -274,14 +258,6 @@ export function mintCronStandingGrantLocked(
   );
 }
 
-export type CronStandingGrantLookupParams = {
-  agentId: string;
-  cronJobId: string;
-  jobConfigRevision: string;
-  operationBinding: string;
-  nowMs?: number;
-};
-
 export function validateCronStandingGrantInDatabase(
   db: DatabaseSync,
   params: CronStandingGrantLookupParams,
@@ -415,14 +391,6 @@ function lookupCronStandingGrant(
   };
 }
 
-/** One grant row projected for operator surfaces (list, CLI, cards). */
-export type CronStandingGrantListing = CronStandingGrantRecord & {
-  /** Display name from the owning cron job row; null when the job is gone. */
-  cronJobName: string | null;
-  revokedAtMs: number | null;
-  revokedBy: string | null;
-};
-
 /** Includes revoked and expired grants so the operator ledger retains history. */
 export function listCronStandingGrantsInDatabase(
   db: DatabaseSync,
@@ -452,11 +420,6 @@ export function listCronStandingGrantsInDatabase(
     }),
   );
 }
-
-export type RevokeCronStandingGrantResult =
-  | { outcome: "revoked"; grant: CronStandingGrantListing }
-  | { outcome: "already-revoked" }
-  | { outcome: "not-found" };
 
 /** Repeated revocation preserves the original actor and timestamp. */
 export function revokeCronStandingGrantInDatabase(params: {

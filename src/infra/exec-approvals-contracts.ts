@@ -1,10 +1,7 @@
-import type { WorkerOperations } from "../state/worker-operation-registry.js";
 // Shared type contracts for exec approval policy and durable persistence.
 import type { ExecApprovalPolicySnapshot } from "./exec-approval-policy-snapshot.js";
-import type { AllowAlwaysPattern } from "./exec-approvals-allowlist.js";
-import type { execAuthorizationOperations } from "./exec-approvals-authorization.worker.js";
 import type { ExecApprovalsSnapshot, ExecAsk, ExecSecurity } from "./exec-approvals-core.js";
-import type { ExecAllowlistEntry } from "./exec-approvals.types.js";
+import type { AllowAlwaysPattern, ExecAllowlistEntry } from "./exec-approvals.types.js";
 
 export type ExecApprovalsDefaultOverrides = {
   security?: ExecSecurity;
@@ -49,7 +46,3 @@ export type ExecAuthorizationCommitInput = {
 export type ExecAuthorizationCommitOutcome =
   | { ok: true; snapshot: ExecApprovalsSnapshot }
   | { ok: false; message: string };
-
-export type ExecAuthorizationWorkerOperations = WorkerOperations<
-  typeof execAuthorizationOperations
->;

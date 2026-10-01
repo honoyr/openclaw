@@ -1,8 +1,8 @@
 import type { DatabaseSync } from "node:sqlite";
+import type { OpenClawStateDatabaseOptions } from "../state/openclaw-state-db-contract.js";
 import {
   openOpenClawStateDatabase,
   runOpenClawStateWriteTransaction,
-  type OpenClawStateDatabaseOptions,
 } from "../state/openclaw-state-db.js";
 import type { WorkerOperationHandlers } from "../state/worker-operation-registry.js";
 import { applyExecAuthorizationCommit } from "./exec-approvals-authorization.kernel.js";
@@ -14,13 +14,13 @@ import type {
 import type { ExecApprovalsSnapshot } from "./exec-approvals-core.js";
 import { assertNoPendingLegacyExecApprovals } from "./exec-approvals-migration-gate.js";
 import {
+  snapshotFromExecApprovalsDatabase,
   assertExecApprovalsMutationAllowed,
   ExecApprovalsMutationFencedError,
   serializeExecApprovals,
   snapshotFromExecApprovalsRow,
   writeExecApprovalsConfigRow,
 } from "./exec-approvals-sqlite.js";
-import { snapshotFromExecApprovalsDatabase } from "./exec-approvals-store.js";
 
 function applyAuthorizationBatch(
   db: DatabaseSync,
