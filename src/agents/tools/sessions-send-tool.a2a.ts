@@ -19,7 +19,7 @@ import {
   callAgentToolGatewayRequest,
   type AgentToolGatewayRequestCaller,
 } from "./in-process-gateway.js";
-import { resolveSessionDeliveryTarget } from "./sessions-delivery-target.js";
+import { resolveSessionsSendReplyTarget } from "./sessions-delivery-target.js";
 import type { SessionDeliveryTarget } from "./sessions-send-helpers.js";
 import { isNonDeliverableSessionsReply } from "./sessions-send-tokens.js";
 
@@ -175,7 +175,7 @@ export async function runSessionsSendA2AFlow(params: {
           : undefined;
       const resolvedTarget = sourceTarget
         ? undefined
-        : await resolveSessionDeliveryTarget({
+        : await resolveSessionsSendReplyTarget({
             sessionKey: params.targetSessionKey,
             displayKey: params.displayKey,
             callGateway: gatewayCall,

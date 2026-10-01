@@ -9,7 +9,7 @@ import type { GatewaySessionListRow } from "./sessions-helpers.js";
 import type { SessionDeliveryTarget } from "./sessions-send-helpers.js";
 import { resolveSessionDeliveryTargetFromKey } from "./sessions-send-helpers.js";
 
-export async function resolveSessionDeliveryTarget(params: {
+export async function resolveSessionsSendReplyTarget(params: {
   sessionKey: string;
   displayKey: string;
   callGateway: AgentToolGatewayRequestCaller;

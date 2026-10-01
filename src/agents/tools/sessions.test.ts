@@ -113,7 +113,7 @@ vi.mock("../../sessions/session-participant-recording.js", () => ({
 
 let createSessionsListTool: typeof import("./sessions-list-tool.js").createSessionsListTool;
 let createSessionsSendTool: typeof import("./sessions-send-tool.js").createSessionsSendTool;
-let resolveSessionDeliveryTarget: (typeof import("./sessions-delivery-target.js"))["resolveSessionDeliveryTarget"];
+let resolveSessionsSendReplyTarget: (typeof import("./sessions-delivery-target.js"))["resolveSessionsSendReplyTarget"];
 let setActivePluginRegistry: (typeof import("../../plugins/runtime.js"))["setActivePluginRegistry"];
 const MAIN_AGENT_SESSION_KEY = "agent:main:main";
 const MAIN_AGENT_CHANNEL = "whatsapp";
@@ -174,7 +174,7 @@ function requireGatewayRequest(index = 0) {
 beforeAll(async () => {
   ({ createSessionsListTool } = await import("./sessions-list-tool.js"));
   ({ createSessionsSendTool } = await import("./sessions-send-tool.js"));
-  ({ resolveSessionDeliveryTarget } = await import("./sessions-delivery-target.js"));
+  ({ resolveSessionsSendReplyTarget } = await import("./sessions-delivery-target.js"));
   ({ setActivePluginRegistry } = await import("../../plugins/runtime.js"));
 });
 
@@ -495,14 +495,14 @@ it("authorizes an arbitrary bare key against its persisted fixed-store owner", a
   ]);
 });
 
-describe("resolveSessionDeliveryTarget", () => {
+describe("resolveSessionsSendReplyTarget", () => {
   beforeEach(async () => {
     callGatewayMock.mockClear();
     await installRegistry();
   });
 
   it("derives non-WhatsApp delivery targets from the session key", async () => {
-    const target = await resolveSessionDeliveryTarget({
+    const target = await resolveSessionsSendReplyTarget({
       sessionKey: "agent:main:discord:group:dev",
       displayKey: "agent:main:discord:group:dev",
       callGateway: callGatewayMock,
@@ -529,7 +529,7 @@ describe("resolveSessionDeliveryTarget", () => {
           : { sessions: sessions.slice(0, request.params.limit) },
     );
 
-    const target = await resolveSessionDeliveryTarget({
+    const target = await resolveSessionsSendReplyTarget({
       sessionKey,
       displayKey: sessionKey,
       agentId: "main",
@@ -556,7 +556,7 @@ describe("resolveSessionDeliveryTarget", () => {
       },
     });
 
-    const target = await resolveSessionDeliveryTarget({
+    const target = await resolveSessionsSendReplyTarget({
       sessionKey: "agent:main:feishu:direct:ou_user",
       displayKey: "agent:main:feishu:direct:ou_user",
       callGateway: callGatewayMock,
@@ -581,7 +581,7 @@ describe("resolveSessionDeliveryTarget", () => {
       },
     });
 
-    const target = await resolveSessionDeliveryTarget({
+    const target = await resolveSessionsSendReplyTarget({
       sessionKey: "agent:main:slack:channel:C123:thread:1710000000.000100",
       displayKey: "agent:main:slack:channel:C123:thread:1710000000.000100",
       callGateway: callGatewayMock,
