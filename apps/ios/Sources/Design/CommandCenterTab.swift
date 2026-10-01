@@ -737,6 +737,10 @@ enum SessionStatusScope: String, CaseIterable {
     case snoozed
     case archived
 
+    static func available(isConnected: Bool) -> [Self] {
+        isConnected ? self.allCases : [.active, .snoozed]
+    }
+
     var title: String {
         switch self {
         case .active: String(localized: "Active")
@@ -795,6 +799,11 @@ struct CommandSessionsScreen: View {
         .toolbar(.hidden, for: .navigationBar)
         .task(id: self.refreshID) {
             await self.refreshSessions()
+        }
+        .onChange(of: self.availableStatusScopes, initial: true) { _, scopes in
+            if !scopes.contains(self.statusScope) {
+                self.statusScope = .active
+            }
         }
         .task(id: self.sessions) {
             self.now = .now
@@ -882,9 +891,9 @@ struct CommandSessionsScreen: View {
                 .padding(.top, 10)
                 .padding(.bottom, 3)
 
-                if self.sessionControlsAvailable {
+                if self.appModel.isCommandSessionListAvailable || !self.sessions.isEmpty {
                     Picker(selection: self.$statusScope) {
-                        ForEach(SessionStatusScope.allCases, id: \.self) { scope in
+                        ForEach(self.availableStatusScopes, id: \.self) { scope in
                             Text(verbatim: scope.title)
                                 .font(OpenClawType.captionMedium)
                                 .tag(scope)
@@ -976,6 +985,10 @@ struct CommandSessionsScreen: View {
 
     private var sessionControlsAvailable: Bool {
         !self.appModel.isLocalChatFixtureEnabled && self.appModel.isOperatorGatewayConnected
+    }
+
+    private var availableStatusScopes: [SessionStatusScope] {
+        SessionStatusScope.available(isConnected: self.appModel.isOperatorGatewayConnected)
     }
 
     private var emptyTitle: String {

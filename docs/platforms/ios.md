@@ -134,6 +134,8 @@ wakes when its deadline arrives, a real inbound message arrives, or an agent
 run completes. Pinning or archiving clears its snooze. Protected main sessions,
 child/subagent sessions, and archived sessions cannot be snoozed.
 
+Cached snoozed sessions remain browsable offline under the **Snoozed** scope.
+
 Snooze only hides a session from active lists. It never stops a run, prevents
 messages, or disables automations. The Gateway stores the wake time, so it is
 shared across connected clients; an open conversation stays open.

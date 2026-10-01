@@ -4,6 +4,11 @@ import Testing
 @testable import OpenClaw
 
 struct CommandCenterTabSessionFilterTests {
+    @Test func `cached browsing scopes remain available offline while archives require a connection`() {
+        #expect(SessionStatusScope.available(isConnected: false) == [.active, .snoozed])
+        #expect(SessionStatusScope.available(isConnected: true) == [.active, .snoozed, .archived])
+    }
+
     @Test func `status scopes separate future snoozes and archives while expired snoozes return to active`() throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let entries = try JSONDecoder().decode([OpenClawChatSessionEntry].self, from: Data("""
