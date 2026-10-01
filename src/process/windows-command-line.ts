@@ -42,7 +42,7 @@ function parseWindowsNativeArguments(value: string): string[] {
   return args;
 }
 
-/** Parse a complete CIM/WMIC command line; argv[0] preserves backslashes before quotes. */
+/** Parse a native process command line; argv[0] preserves backslashes before quotes. */
 export function parseWindowsNativeCommandLine(value: string): string[] | null {
   if (value.includes("\0")) {
     return null;

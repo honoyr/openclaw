@@ -28,6 +28,7 @@ vi.mock("../infra/windows-encoding.js", async () => {
 import {
   createSpawnChild,
   inspectPortUsageMock,
+  isProcessSnapshotQuery,
   killProcessTreeMock,
   makeSpawnSyncResult,
   resetSchtasksBaseMocks,
@@ -128,16 +129,6 @@ const { createMockGatewayService } = await import("./service.test-helpers.js");
 const { readServiceStatusSummary } = await import("../commands/status.service-summary.js");
 const { getStatusOverviewRowValue } = await import("../commands/status.test-support.ts");
 
-function isProcessSnapshotQuery(args: readonly string[] | undefined): boolean {
-  return (
-    args?.some(
-      (arg) =>
-        arg.includes("Get-CimInstance Win32_Process") &&
-        arg.includes("Select-Object ProcessId,CommandLine") &&
-        arg.includes("ConvertTo-Json"),
-    ) ?? false
-  );
-}
 const STARTUP_GATEWAY_COMMAND =
   '"C:\\Program Files\\nodejs\\node.exe" "C:\\openclaw\\dist\\index.js" gateway --port 18789';
 
