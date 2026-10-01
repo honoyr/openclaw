@@ -48,7 +48,7 @@ export const modelsHandlers: GatewayRequestHandlers = {
             )
           : undefined;
       scope = scoped
-        ? resolveChatMetadataReadParams(options, params, draftAccountSelection)
+        ? await resolveChatMetadataReadParams(options, params, draftAccountSelection)
         : undefined;
       if (scoped && !scope) {
         return;
@@ -84,17 +84,18 @@ export const modelsHandlers: GatewayRequestHandlers = {
             allowedScopes: scopes,
           });
         if (limitedSessionRead) {
-          scope = resolveChatMetadataReadParams(options, { agentId: resolved.agentId });
+          scope = await resolveChatMetadataReadParams(options, { agentId: resolved.agentId });
           if (!scope) {
             return;
           }
         }
       }
       publicationScope =
-        scope ?? resolveChatMetadataReadParams(options, { agentId: resolved.agentId });
+        scope ?? (await resolveChatMetadataReadParams(options, { agentId: resolved.agentId }));
       if (!publicationScope) {
         return;
       }
+      publicationScope.assertCurrent?.();
       if (params.refresh !== true) {
         refreshExpiredPreparedModelCatalog({ agentId: resolved.agentId, config: cfg });
       }
