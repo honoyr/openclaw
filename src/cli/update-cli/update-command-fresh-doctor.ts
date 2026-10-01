@@ -21,6 +21,7 @@ import { UPDATE_RUN_ID_ENV } from "../../infra/update-control-plane-sentinel.js"
 import type { UpdateDatabaseBackup } from "../../infra/update-database-backup.js";
 import { hasDeferredUpdateModelRetirement } from "../../infra/update-deferred-model-retirement.js";
 import {
+  collectUpdateDoctorFailureFacts,
   consumeUpdatePostInstallDoctorResult,
   createUpdatePostInstallDoctorResultPath,
   DoctorMaintenanceRefusalError,
@@ -138,10 +139,12 @@ export async function runUpdateFinalizationDoctorInFreshProcess(params: {
   const baseEnv = stripGatewayServiceMarkerEnv(disableUpdatedPackageCompileCacheEnv(process.env));
   delete baseEnv[UPDATE_POST_CORE_CONVERGENCE_ENV];
   const doctorResultPath = createUpdatePostInstallDoctorResultPath();
-  let doctorResult: UpdatePostInstallDoctorResult | null = null;
+  let doctorResult: UpdatePostInstallDoctorResult | null | undefined;
   let doctorSettled = true;
   let processSettlement: UpdateStepResult | undefined;
   let result: { stdout?: unknown; stderr?: unknown } | undefined;
+  let warning: PluginUpdateWarning | undefined;
+  let failure: { error: unknown } | undefined;
   assertCurrent();
   try {
     const commandOptions: RunExecOptions = {
@@ -250,129 +253,150 @@ export async function runUpdateFinalizationDoctorInFreshProcess(params: {
       assertCurrent();
     }
   } catch (error) {
-    if (
-      hasCommandProcessCleanupError(error) ||
-      (isRecord(error) && error.cleanup === "uncertain")
-    ) {
-      doctorSettled = false;
-      throw new CommandProcessCleanupError({ cause: error });
-    }
-    if (
-      collectNestedErrorCandidates(error).some(
-        (cause) =>
-          cause instanceof UpdateCommandRecoveryPendingError ||
-          cause instanceof UpdateRequesterRevokedError,
-      )
-    ) {
-      refuseAuthority(error);
-    }
-    assertCurrent();
-    doctorResult = await consumeUpdatePostInstallDoctorResult(doctorResultPath);
-    if (
-      doctorResult?.configWriteRefusal?.reason === "authority-check-failed" ||
-      doctorResult?.configWriteRefusal?.reason === "requester-revoked"
-    ) {
-      refuseAuthority(error);
-    }
-    if (isRecord(error)) {
-      result = error;
-      // Enabling the existing result channel gives deferred plugin repair its
-      // advisory exit code. Convergence below still owns that repair.
+    failure = { error };
+  }
+  const commandFailure = failure;
+  if (failure) {
+    const error = failure.error;
+    failure = undefined;
+    try {
       if (
+        hasCommandProcessCleanupError(error) ||
+        (isRecord(error) && error.cleanup === "uncertain")
+      ) {
+        doctorSettled = false;
+        throw new CommandProcessCleanupError({ cause: error });
+      }
+      if (
+        collectNestedErrorCandidates(error).some(
+          (cause) =>
+            cause instanceof UpdateCommandRecoveryPendingError ||
+            cause instanceof UpdateRequesterRevokedError,
+        )
+      ) {
+        refuseAuthority(error);
+      }
+      assertCurrent();
+      doctorResult = await consumeUpdatePostInstallDoctorResult(doctorResultPath);
+      if (
+        doctorResult?.configWriteRefusal?.reason === "authority-check-failed" ||
+        doctorResult?.configWriteRefusal?.reason === "requester-revoked"
+      ) {
+        refuseAuthority(error);
+      }
+      if (isRecord(error)) {
+        result = error;
+      }
+      // The existing result channel identifies a settled deferred repair. Plugin
+      // convergence still owns that repair; other exits retain their failure.
+      const deferred =
+        isRecord(error) &&
         error.exitCode === UPDATE_POST_INSTALL_DOCTOR_ADVISORY_EXIT_CODE &&
         isPlainCommandExitFailure({
           ...error,
           failed: error.failed === true,
           cause: error.cause,
         }) &&
-        doctorResult?.status === "advisory"
-      ) {
-        return;
+        doctorResult?.status === "advisory";
+      if (!deferred) {
+        const exitCode =
+          isRecord(error) && typeof error.exitCode === "number" ? error.exitCode : null;
+        const redaction = { env: process.env, stateDir: resolveStateDir() };
+        const failureFacts = doctorResult?.configWriteRefusal
+          ? [
+              createUpdateFailureFact({
+                check: "config-write",
+                code: doctorResult.configWriteRefusal.reason,
+                message: doctorResult.configWriteRefusal.message,
+              }),
+            ]
+          : doctorResult?.failureFacts?.length
+            ? doctorResult.failureFacts
+            : [
+                createUpdateFailureFact({
+                  check: "doctor",
+                  code: "doctor-failed",
+                  message:
+                    typeof result?.stderr === "string" && result.stderr.trim()
+                      ? result.stderr
+                      : error instanceof Error
+                        ? error.message
+                        : String(error),
+                }),
+              ];
+        const details = (["stderr", "stdout"] as const).flatMap((stream) => {
+          const output = result?.[stream];
+          if (typeof output !== "string" || !output.trim()) {
+            return [];
+          }
+          // Execa's message starts with full argv. Keep both actual diagnostics before
+          // the bounded update handoff, without cutting a credential before redaction.
+          const redacted = redactSupportString(output, redaction, {
+            maxLength: Number.MAX_SAFE_INTEGER,
+          });
+          const formatted = formatCommandOutput(redacted, 384);
+          let excerpt = formatted;
+          if (Buffer.byteLength(redacted) > 384 || Buffer.byteLength(formatted) > 384) {
+            const beginning = formatCommandOutput(truncateUtf8Prefix(redacted, 256), 256);
+            excerpt = `${truncateUtf8Prefix(beginning, 256)}\n...\n${truncateUtf8Suffix(formatted, 123)}`;
+          }
+          return excerpt ? [`${stream}: ${excerpt}`] : [];
+        });
+        const message = details.length
+          ? `Updated ${params.phase} Doctor failed:\n${details.join("\n")}`
+          : error instanceof Error
+            ? error.message
+            : String(error);
+        if (
+          doctorResult?.status === "error" &&
+          doctorResult.maintenanceRefusal?.kind === "data-at-risk"
+        ) {
+          throw new DoctorMaintenanceRefusalError(message, doctorResult.maintenanceRefusal, {
+            cause: error,
+            failureFacts,
+          });
+        }
+        // Explicit writer/migration refusals and unsettled writers retain their safety decision.
+        // An execution failure alone does not establish that installed state is unsafe.
+        if (
+          params.phase === "post-plugin" &&
+          !(isRecord(error) && error.isCanceled === true) &&
+          failureFacts.every((fact) => fact.check === "doctor" && fact.code === "doctor-failed")
+        ) {
+          warning = {
+            reason: "doctor-advisory",
+            message: `Post-update plugin Doctor did not complete${exitCode == null ? "" : ` (exit ${exitCode})`}: ${message}`,
+            guidance: ["Run `openclaw update repair` to retry post-update plugin repair."],
+          };
+        } else {
+          throw new UpdateDoctorError(message, failureFacts, { cause: error, exitCode });
+        }
       }
+    } catch (error) {
+      failure = { error };
     }
-    const exitCode = isRecord(error) && typeof error.exitCode === "number" ? error.exitCode : null;
-    const redaction = { env: process.env, stateDir: resolveStateDir() };
-    const failureFacts = doctorResult?.configWriteRefusal
-      ? [
-          createUpdateFailureFact({
-            check: "config-write",
-            code: doctorResult.configWriteRefusal.reason,
-            message: doctorResult.configWriteRefusal.message,
-          }),
-        ]
-      : doctorResult?.failureFacts?.length
-        ? doctorResult.failureFacts
-        : [
-            createUpdateFailureFact({
-              check: "doctor",
-              code: "doctor-failed",
-              message:
-                typeof result?.stderr === "string" && result.stderr.trim()
-                  ? result.stderr
-                  : error instanceof Error
-                    ? error.message
-                    : String(error),
-            }),
-          ];
-    const details = (["stderr", "stdout"] as const).flatMap((stream) => {
-      const output = result?.[stream];
-      if (typeof output !== "string" || !output.trim()) {
-        return [];
-      }
-      // Execa's message starts with full argv. Keep both actual diagnostics before
-      // the bounded update handoff, without cutting a credential before redaction.
-      const redacted = redactSupportString(output, redaction, {
-        maxLength: Number.MAX_SAFE_INTEGER,
-      });
-      const formatted = formatCommandOutput(redacted, 384);
-      let excerpt = formatted;
-      if (Buffer.byteLength(redacted) > 384 || Buffer.byteLength(formatted) > 384) {
-        const beginning = formatCommandOutput(truncateUtf8Prefix(redacted, 256), 256);
-        excerpt = `${truncateUtf8Prefix(beginning, 256)}\n...\n${truncateUtf8Suffix(formatted, 123)}`;
-      }
-      return excerpt ? [`${stream}: ${excerpt}`] : [];
-    });
-    const message = details.length
-      ? `Updated ${params.phase} Doctor failed:\n${details.join("\n")}`
-      : error instanceof Error
-        ? error.message
-        : String(error);
-    if (
-      doctorResult?.status === "error" &&
-      doctorResult.maintenanceRefusal?.kind === "data-at-risk"
-    ) {
-      throw new DoctorMaintenanceRefusalError(message, doctorResult.maintenanceRefusal, {
-        cause: error,
-        failureFacts,
-      });
+  }
+  try {
+    if (doctorSettled && doctorResult === undefined) {
+      doctorResult = await consumeUpdatePostInstallDoctorResult(doctorResultPath);
     }
-    // Explicit writer/migration refusals and unsettled writers retain their safety decision.
-    // An execution failure alone does not establish that installed state is unsafe.
-    if (
-      params.phase === "post-plugin" &&
-      !(isRecord(error) && error.isCanceled === true) &&
-      failureFacts.every((fact) => fact.check === "doctor" && fact.code === "doctor-failed")
-    ) {
-      return {
-        reason: "doctor-advisory",
-        message: `Post-update plugin Doctor did not complete${exitCode == null ? "" : ` (exit ${exitCode})`}: ${message}`,
-        guidance: ["Run `openclaw update repair` to retry post-update plugin repair."],
+    if (doctorResult?.status === "ok" && doctorResult.maintenanceRefusal) {
+      const refusal = new DoctorMaintenanceRefusalError(
+        doctorResult.warnings?.[0] ??
+          "Doctor maintenance remains pending; run openclaw doctor --fix.",
+        doctorResult.maintenanceRefusal,
+        { cause: commandFailure?.error, failureFacts: doctorResult.failureFacts },
+      );
+      failure = {
+        error: failure
+          ? new AggregateError([failure.error, refusal], "Doctor maintenance remains refused", {
+              cause: failure.error,
+            })
+          : refusal,
       };
     }
-    throw new UpdateDoctorError(message, failureFacts, { cause: error, exitCode });
-  } finally {
     if (processSettlement) {
-      try {
-        params.onDoctorStep?.(processSettlement);
-      } catch (cause) {
-        if (!doctorSettled) {
-          throw new CommandProcessCleanupError({ cause });
-        }
-        throw cause;
-      }
-    }
-    if (doctorSettled) {
-      doctorResult ??= await consumeUpdatePostInstallDoctorResult(doctorResultPath);
+      params.onDoctorStep?.(processSettlement);
     }
     if (params.databaseBackup) {
       const step: UpdateStepResult = {
@@ -396,13 +420,20 @@ export async function runUpdateFinalizationDoctorInFreshProcess(params: {
     if (typeof result?.stderr === "string" && result.stderr.trim()) {
       defaultRuntime.error(result.stderr.trimEnd());
     }
+  } catch (error) {
+    failure = {
+      error: failure
+        ? new AggregateError([failure.error, error], "Doctor result recording failed", {
+            cause: failure.error,
+          })
+        : error,
+    };
   }
-  if (doctorResult?.status === "ok" && doctorResult.maintenanceRefusal) {
-    throw new DoctorMaintenanceRefusalError(
-      doctorResult.warnings?.[0] ??
-        "Doctor maintenance remains pending; run openclaw doctor --fix.",
-      doctorResult.maintenanceRefusal,
-    );
+  if (failure) {
+    throw failure.error;
+  }
+  if (warning) {
+    return warning;
   }
 }
 
@@ -544,7 +575,9 @@ export async function completePostCorePluginUpdate(
       if (
         authorityFailed ||
         hasCommandProcessCleanupError(err) ||
-        err instanceof DoctorMaintenanceRefusalError
+        collectNestedErrorCandidates(err).some(
+          (cause) => cause instanceof DoctorMaintenanceRefusalError,
+        )
       ) {
         throw err;
       }
@@ -552,12 +585,12 @@ export async function completePostCorePluginUpdate(
       assertCurrent();
       const failedUpdate = params.pluginUpdate;
       const reason = String(err);
-      const failureFacts = err instanceof UpdateDoctorError ? err.failureFacts : undefined;
+      const failureFacts = collectUpdateDoctorFailureFacts(err);
       pluginUpdate = {
         ...failedUpdate,
         status: "error",
         reason: POST_PLUGIN_DOCTOR_EXECUTION_FAILED_REASON,
-        ...(failureFacts?.length ? { failureFacts } : {}),
+        ...(failureFacts.length ? { failureFacts } : {}),
         warnings: [
           ...(failedUpdate.warnings ?? []),
           {

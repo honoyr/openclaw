@@ -138,7 +138,7 @@ export async function runUpdateDoctorProcess(
         context.onProcessSettlement?.(settlement);
       } catch (cause) {
         if (settlement.exitCode !== 0) {
-          throw new AggregateError([error, cause], error.message);
+          throw new AggregateError([error, cause], error.message, { cause: error });
         }
         throw cause;
       }

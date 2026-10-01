@@ -59,7 +59,7 @@ export async function retainUpdateDoctorProcesses(
   // publish per-command group extinction. Preserve normal completion without
   // inventing a receipt that would authorize interrupted recovery.
   if (!resultPath || process.platform === "win32") {
-    return;
+    return undefined;
   }
   const file = `${resultPath}.processes`;
   let raw: string;
@@ -195,7 +195,7 @@ export function createUpdateDoctorProcessCustody(
       const pid = result.pid;
       if (pid === undefined && result.cleanup === "normal") {
         mayRemove = true;
-        return;
+        return undefined;
       }
       const rootExtinct =
         pid !== undefined &&
@@ -222,7 +222,7 @@ export function createUpdateDoctorProcessCustody(
         // Shipped targets predate custody IPC. Preserve their normal completion;
         // they cannot supply evidence that authorizes recovery after interruption.
         mayRemove = true;
-        return;
+        return undefined;
       }
       const identities =
         receipt?.slots.flatMap((slot) => (slot.identity ? [slot.identity] : [])) ?? [];
@@ -242,7 +242,7 @@ export function createUpdateDoctorProcessCustody(
       const settled = rootExtinct && receipt !== undefined && pending === 0 && groups.settled;
       mayRemove = settled;
       if (settled && !abnormal && receipt?.slots.length === 0) {
-        return;
+        return undefined;
       }
       const pids = [
         ...new Set([

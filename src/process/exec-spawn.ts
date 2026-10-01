@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { ChildProcess } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
+import { toErrorObject } from "@openclaw/normalization-core/error-coercion";
 import { execa } from "execa";
 import { markOpenClawExecEnv } from "../infra/openclaw-exec-env.js";
 import { mergeProcessEnv } from "../infra/process-env.js";
@@ -260,7 +261,7 @@ function retainCommandProcess(
       readiness = Promise.resolve();
     } catch (error) {
       bindingError = { error };
-      readiness = Promise.reject(error);
+      readiness = Promise.reject(toErrorObject(error));
     }
   }
   commandAdmissions.set(nativeChild, readiness);

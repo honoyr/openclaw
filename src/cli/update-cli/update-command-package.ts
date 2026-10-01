@@ -397,25 +397,33 @@ export async function runPackageUpdateDoctor(params: PackageDoctorOptions) {
       if (!recorded) {
         throw outcome.error;
       }
-      return await completeDoctorStep(recorded, doctorResult, outcome);
+      outcome = { step: await completeDoctorStep(recorded, doctorResult, outcome) };
+    } else {
+      outcome = { step: await completeDoctorStep(outcome.step, doctorResult) };
     }
-    return await completeDoctorStep(outcome.step, doctorResult);
-  } finally {
-    if (processSettlement) {
-      completedSteps.unshift(processSettlement);
-    }
+  } catch (error) {
+    outcome = { error };
+  }
+  if (processSettlement) {
+    completedSteps.unshift(processSettlement);
+  }
+  try {
     params.results?.push(...completedSteps);
     if (processSettlement) {
-      try {
-        params.progress?.onStepComplete?.({ ...processSettlement, index: 0, total: 0 });
-      } catch (error) {
-        if ("error" in outcome && hasCommandProcessCleanupError(outcome.error)) {
-          throw new AggregateError([outcome.error, error], "Doctor settlement recording failed");
-        }
-        throw error;
-      }
+      params.progress?.onStepComplete?.({ ...processSettlement, index: 0, total: 0 });
     }
+  } catch (error) {
+    if ("error" in outcome) {
+      throw new AggregateError([outcome.error, error], "Doctor settlement recording failed", {
+        cause: outcome.error,
+      });
+    }
+    throw error;
   }
+  if ("error" in outcome) {
+    throw outcome.error;
+  }
+  return outcome.step;
 }
 
 /** Keep package staging open until its source owner publishes the validated checkout. */

@@ -1,11 +1,13 @@
 import { writeSync } from "node:fs";
 import os from "node:os";
+import { collectNestedErrorCandidates } from "@openclaw/normalization-core/error-coercion";
 import { resolveStateDir } from "../../config/paths.js";
 import { extractErrorCode, formatErrorMessage } from "../../infra/errors.js";
 import { resolveAggregateSqliteInspectionTimeoutMs } from "../../infra/sqlite-readonly-worker.js";
 import { readUpdateStateDatabaseSizes } from "../../infra/update-candidate-state.sizes.js";
 import { UPDATE_RUN_ID_ENV } from "../../infra/update-control-plane-sentinel.js";
 import {
+  collectUpdateDoctorFailureFacts,
   DoctorMaintenanceRefusalError,
   UpdateDoctorError,
 } from "../../infra/update-doctor-result.js";
@@ -371,6 +373,9 @@ export class UpdateFinalizationLifecycle {
       if (failure) {
         this.record(`warning:finalize:${phase}:deadline`, "completed", Date.now(), failure.message);
       }
+      const doctorFailure = collectNestedErrorCandidates(error).find(
+        (cause): cause is UpdateDoctorError => cause instanceof UpdateDoctorError,
+      );
       const facts = failure
         ? [
             createUpdateFailureFact({
@@ -379,8 +384,8 @@ export class UpdateFinalizationLifecycle {
               message: failure.message,
             }),
           ]
-        : error instanceof UpdateDoctorError
-          ? error.failureFacts
+        : doctorFailure
+          ? collectUpdateDoctorFailureFacts(error)
           : [
               createUpdateFailureFact({
                 check: phase,
@@ -401,7 +406,7 @@ export class UpdateFinalizationLifecycle {
               stateDir: resolveStateDir(process.env),
             }),
         deferred ? undefined : facts,
-        !deferred && error instanceof UpdateDoctorError ? error.exitCode : undefined,
+        deferred ? undefined : doctorFailure?.exitCode,
       );
       throw error;
     } finally {

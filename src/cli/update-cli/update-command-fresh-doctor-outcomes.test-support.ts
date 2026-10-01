@@ -5,7 +5,10 @@ import {
   UPDATE_POST_INSTALL_DOCTOR_RESULT_PATH_ENV,
   writeUpdatePostInstallDoctorResult,
 } from "../../infra/update-doctor-result.js";
-import { CommandProcessCleanupError } from "../../process/exec-result.js";
+import {
+  CommandProcessCleanupError,
+  hasCommandProcessCleanupError,
+} from "../../process/exec-result.js";
 import type { runExec, runUtf8CommandWithTimeout } from "../../process/exec.js";
 import { completePostCorePluginUpdate } from "./update-command-fresh-doctor.js";
 
@@ -127,6 +130,52 @@ export function registerFreshDoctorOutcomeTests(
         "Command cleanup could not confirm that owned work stopped",
       );
       expect(mocks.command).toHaveBeenCalledOnce();
+      expect(mocks.readConfig).not.toHaveBeenCalled();
+      expect(mocks.runUtf8).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["cleanup", "output", "settled"])(
+    "preserves an unsafe Doctor refusal when warning publication fails (%s)",
+    async (fault) => {
+      const original = new Error("Doctor migration refused");
+      const recording =
+        fault === "cleanup" ? new CommandProcessCleanupError() : new Error("Warning output failed");
+      const refusal = { kind: "data-at-risk" as const, reason: "active-mutation" as const };
+      mocks.command.mockImplementationOnce(async (_command, _args, options) => {
+        assert(options && typeof options === "object");
+        const resultPath = options.env?.[UPDATE_POST_INSTALL_DOCTOR_RESULT_PATH_ENV];
+        assert(resultPath);
+        await writeUpdatePostInstallDoctorResult({
+          resultPath,
+          result: {
+            status: fault === "settled" ? "ok" : "error",
+            maintenanceRefusal: refusal,
+            failureFacts: [{ check: "state", code: "step-refused" }],
+            warnings: ["Keep the migration backup."],
+          },
+        });
+        if (fault !== "settled") {
+          throw original;
+        }
+        return { stdout: "", stderr: "" };
+      });
+      const error = await completePostCorePluginUpdate({
+        ...updateOptions,
+        onWarnings: () => {
+          throw recording;
+        },
+      }).catch((cause: unknown) => cause);
+      expect(error).toBeInstanceOf(AggregateError);
+      expect(error).toMatchObject({
+        cause: {
+          ...(fault !== "settled" ? { cause: original } : {}),
+          refusal,
+          failureFacts: [{ check: "state", code: "step-refused" }],
+        },
+        errors: [expect.objectContaining({ refusal }), recording],
+      });
+      expect(hasCommandProcessCleanupError(error)).toBe(fault === "cleanup");
       expect(mocks.readConfig).not.toHaveBeenCalled();
       expect(mocks.runUtf8).not.toHaveBeenCalled();
     },
