@@ -201,6 +201,21 @@ export async function setCanonicalUserProfileRole(
     }),
   );
 }
+export async function setCanonicalUserProfileDisplayName(
+  profileId: string,
+  name: string | null,
+  options: ProfileWriteOptions = {},
+) {
+  return unwrap(await write("userProfiles.setDisplayName", { profileId, name }, options));
+}
+export async function setCanonicalUserProfileAvatar(
+  profileId: string,
+  bytes: Uint8Array,
+  mime: string,
+  options: ProfileWriteOptions = {},
+) {
+  return unwrap(await write("userProfiles.setAvatar", { profileId, bytes, mime }, options));
+}
 export async function linkCanonicalUserProfileEmail(
   email: string,
   targetProfileId: string,

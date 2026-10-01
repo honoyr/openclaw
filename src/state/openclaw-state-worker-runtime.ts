@@ -158,7 +158,6 @@ import {
 } from "./session-repository-workspaces.worker.js";
 import { readUserModelAuthProfile } from "./user-model-accounts.js";
 import { executeUserPreferenceCommand } from "./user-preferences.worker.js";
-import { executeUserProfileCommand, isUserProfileCommand } from "./user-profiles.worker.js";
 
 const log = createSubsystemLogger("state/worker");
 
@@ -377,12 +376,6 @@ export function executeSharedStateCommand(
   }
   if (isRepositoryWorkspaceCommand(command)) {
     return executeRepositoryWorkspaceCommand(command, open());
-  }
-  if (isUserProfileCommand(command)) {
-    return executeUserProfileCommand(command, {
-      database: open(),
-      ...stateOptions(),
-    });
   }
   if (isPluginBlobWorkerCommand(command)) {
     return executePluginBlobCommand(command, context.databasePath, open);
