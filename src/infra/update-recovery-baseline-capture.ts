@@ -22,7 +22,7 @@ import {
 import { resolveOpenClawStateSqlitePath } from "../state/openclaw-state-db.paths.js";
 import {
   getOpenClawDatabaseMaintenanceScope,
-  maintenanceOwnerMayCopySourcesInProcess,
+  maintenanceOwnerHasSourceCustody,
 } from "../state/openclaw-state-maintenance-context.js";
 import { resolveBackupConfigCapture } from "./backup-config-capture.js";
 import { resolvePathViaExistingAncestorSync } from "./boundary-path.js";
@@ -122,12 +122,11 @@ function maintenanceOwnerMayReadGenerationsInProcess(
   const scope = getOpenClawDatabaseMaintenanceScope();
   // An open process-local source handle requires a child: a raw close here could release its POSIX locks.
   return (
-    maintenanceOwnerMayCopySourcesInProcess(scope, sharedStatePath) &&
+    maintenanceOwnerHasSourceCustody(scope, sharedStatePath) &&
     !openClawStateDatabaseCache.isOpenClawStateDatabaseOpen(sharedStatePath) &&
     [...databasePaths].every(
       (pathname) =>
-        maintenanceOwnerMayCopySourcesInProcess(scope, pathname) &&
-        !isOpenClawAgentDatabaseOpen(pathname),
+        maintenanceOwnerHasSourceCustody(scope, pathname) && !isOpenClawAgentDatabaseOpen(pathname),
     )
   );
 }

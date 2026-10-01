@@ -13,6 +13,10 @@ import {
   resolveOpenClawRegisteredAgentDatabasePath,
   resolveOpenClawStateDirForDatabasePath,
 } from "../state/openclaw-state-db.paths.js";
+import {
+  getOpenClawDatabaseMaintenanceScope,
+  maintenanceOwnerHasSourceCustody,
+} from "../state/openclaw-state-maintenance-context.js";
 import { resolveUserPath } from "./home-dir.js";
 import { executeSqliteQuerySync, getNodeSqliteKysely } from "./kysely-sync.js";
 import { openNodeSqliteDatabase } from "./node-sqlite.js";
@@ -491,31 +495,26 @@ export async function readUpdateDatabaseGenerationsIsolated(
     acquisition?: UpdateRecoveryCaptureAcquisition;
   } = {},
 ): Promise<UpdateDatabaseGenerations> {
-  const maintenanceOwner = options.acquisition?.mode === "maintenance-owner";
-  const sourceEnv = options.env ?? process.env;
+  const scope = getOpenClawDatabaseMaintenanceScope();
+  const maintenanceOwner =
+    options.acquisition?.mode === "maintenance-owner" &&
+    paths.every((pathname) => maintenanceOwnerHasSourceCustody(scope, pathname));
+  const { root, timeoutMs, env: sourceEnv = process.env, signal: caller } = options;
   const controller = new AbortController();
-  const signal = options.signal
-    ? AbortSignal.any([options.signal, controller.signal])
-    : controller.signal;
+  const signal = caller ? AbortSignal.any([caller, controller.signal]) : controller.signal;
   const stagingRoot = await createSqliteSnapshotStagingDirectory(
     resolvePrivateSqliteSnapshotStagingRoot(sourceEnv),
-    options.root !== undefined,
+    root !== undefined,
     signal,
   );
   const inspection = (async () => {
     let outcome: { value: UpdateDatabaseGenerations } | { cause: unknown };
     try {
-      const worker = {
-        nodeRunner: process.execPath,
-        sourceEnv,
-        stagingRoot,
-        timeoutMs: options.timeoutMs,
-        signal,
-      };
+      const worker = { nodeRunner: process.execPath, sourceEnv, stagingRoot, timeoutMs, signal };
       const generations = parseUpdateStateInspectionWorker(
         await runUpdateStateInspectionWorker({
           ...worker,
-          root: options.root,
+          root,
           ...(maintenanceOwner ? { ioBudget: "deadline" as const } : {}),
           input: {
             mode: "database-generations",
@@ -524,7 +523,7 @@ export async function readUpdateDatabaseGenerationsIsolated(
             config: {},
           },
           databases: maintenanceOwner
-            ? await readUpdateStateDatabaseSizesInProcess(paths)
+            ? await readUpdateStateDatabaseSizesInProcess(paths, signal)
             : await readUpdateStateDatabaseSizes(paths, worker),
         }),
         z.record(z.string(), z.nullable(z.string().regex(/^[a-f0-9]{64}$/u))),

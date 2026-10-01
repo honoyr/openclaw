@@ -6,6 +6,7 @@ import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { openClawStateDatabaseCache } from "../state/openclaw-state-db-cache.js";
 import {
   getOpenClawDatabaseMaintenanceScope,
+  maintenanceOwnerHasSourceCustody,
   maintenanceOwnerMayCopySourcesInProcess,
 } from "../state/openclaw-state-maintenance-context.js";
 import { resolvePathViaExistingAncestorSync } from "./boundary-path.js";
@@ -353,24 +354,28 @@ export async function createUpdateDatabaseBackup({
         stagingRoot: directory,
       };
       const shared = path.resolve(input.stateDir, "state", "openclaw.sqlite");
+      const scope = getOpenClawDatabaseMaintenanceScope();
       const custody =
         acquisition?.mode === "maintenance-owner" &&
-        maintenanceOwnerMayCopySourcesInProcess(getOpenClawDatabaseMaintenanceScope(), shared) &&
+        maintenanceOwnerHasSourceCustody(scope, shared) &&
         !openClawStateDatabaseCache.isOpenClawStateDatabaseOpen(shared);
-      const inspectionPlan = custody
-        ? await discoverUpdateStateSchemaInspectionInProcess({
-            ...workerInput,
-            stagingRoot: directory,
-            preserveSourceArtifacts: true,
-          })
-        : parseUpdateStateInspectionWorker(
-            await runUpdateStateInspectionWorker({
-              ...worker,
-              input: { ...workerInput, mode: "discover" },
-              databases: await readUpdateStateDatabaseSizes([shared], worker),
-            }),
-            UpdateStateSchemaInspectionPlanSchema,
-          );
+      const inspectionPlan =
+        custody && maintenanceOwnerMayCopySourcesInProcess(scope, shared)
+          ? await discoverUpdateStateSchemaInspectionInProcess({
+              ...workerInput,
+              stagingRoot: directory,
+              preserveSourceArtifacts: true,
+            })
+          : parseUpdateStateInspectionWorker(
+              await runUpdateStateInspectionWorker({
+                ...worker,
+                input: { ...workerInput, mode: "discover" },
+                databases: custody
+                  ? await readUpdateStateDatabaseSizesInProcess([shared], signal)
+                  : await readUpdateStateDatabaseSizes([shared], worker),
+              }),
+              UpdateStateSchemaInspectionPlanSchema,
+            );
       const files = [
         ...inspectionPlan.files.flatMap(([, database]) => database.spellings),
         ...(additionalPaths ?? []),
@@ -386,7 +391,7 @@ export async function createUpdateDatabaseBackup({
           },
           ...(custody ? { ioBudget: "deadline" as const } : {}),
           databases: custody
-            ? await readUpdateStateDatabaseSizesInProcess(files)
+            ? await readUpdateStateDatabaseSizesInProcess(files, signal)
             : await readUpdateStateDatabaseSizes(files, worker),
         }),
         UpdateDatabaseBackupSchema,

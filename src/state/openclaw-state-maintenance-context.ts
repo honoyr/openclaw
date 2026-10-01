@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import fs from "node:fs";
 import { resolveIdentityPathViaExistingAncestorSync } from "../infra/boundary-path.js";
 import { resolveGlobalSingleton } from "../shared/global-singleton.js";
 
@@ -61,7 +62,7 @@ export function allowsMaintenanceLiveAuthorityReads(
 }
 
 /** Raw source descriptor closes are safe only before maintenance admits native source reads. */
-export function maintenanceOwnerMayCopySourcesInProcess(
+export function maintenanceOwnerHasSourceCustody(
   scope: OpenClawDatabaseMaintenanceScope | undefined,
   pathname: string,
 ): boolean {
@@ -70,6 +71,26 @@ export function maintenanceOwnerMayCopySourcesInProcess(
   }
   scope.assertReadAdmission();
   return !allowsMaintenanceLiveAuthorityReads(scope, pathname);
+}
+
+const MAINTENANCE_IN_PROCESS_COPY_MAX_BYTES = 64 * 1024 * 1024;
+
+export function maintenanceOwnerMayCopySourcesInProcess(
+  scope: OpenClawDatabaseMaintenanceScope | undefined,
+  pathname: string,
+): boolean {
+  if (!maintenanceOwnerHasSourceCustody(scope, pathname)) {
+    return false;
+  }
+  // Larger families keep the cancellable isolated child so a slow copy cannot pin Doctor's main thread.
+  let bytes = 0;
+  for (const suffix of ["", "-wal", "-shm", "-journal"]) {
+    bytes += fs.statSync(`${pathname}${suffix}`, { throwIfNoEntry: false })?.size ?? 0;
+    if (bytes > MAINTENANCE_IN_PROCESS_COPY_MAX_BYTES) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export const maintenanceResources = resolveGlobalSingleton(

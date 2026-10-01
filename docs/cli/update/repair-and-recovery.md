@@ -120,7 +120,9 @@ relocation leaves its original location and recorded paths intact.
 Inherited control-plane and managed-helper runs retain their existing capture
 behavior. Standalone `doctor --fix` preserves a separate pre-repair copy; that
 copy does not replace an earlier update's originals. Standalone `doctor --fix`
-snapshots databases under its own maintenance custody with a single isolated worker.
+snapshots databases under its own maintenance custody with a single isolated backup worker.
+Shared database families larger than 64 MiB keep discovery copies in an isolated process
+so a slow copy does not block Doctor's main thread from processing cancellation.
 Standalone Doctor captures are retained for 30 days: the next standalone `doctor --fix`
 retires older sealed Doctor captures and reports each removal; incomplete captures
 and update captures are never retired automatically, so take a verified backup

@@ -49,9 +49,11 @@ const inventorySchema = z.array(
 /** Maintenance custody permits metadata reads without an isolated inventory process. */
 export async function readUpdateStateDatabaseSizesInProcess(
   files: readonly string[],
+  signal?: AbortSignal,
 ): Promise<Array<{ path: string; sizeBytes: bigint | undefined }>> {
   const result: Array<{ path: string; sizeBytes: bigint | undefined }> = [];
   for (const file of files) {
+    signal?.throwIfAborted();
     let sizeBytes: bigint | undefined;
     try {
       sizeBytes = (await fs.stat(file, { bigint: true })).size;

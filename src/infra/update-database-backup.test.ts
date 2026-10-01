@@ -454,6 +454,43 @@ it("seals equivalent original bytes under isolated steps and one maintenance-own
   }
 });
 
+it("keeps large maintenance-owned shared copies in the isolated discovery child", async () => {
+  const f = await originalCaptureFixture();
+  await fs.truncate(f.shared, 65 * 1024 * 1024);
+  const worker = vi.spyOn(inspection, "runUpdateStateInspectionWorker");
+  const isolatedGenerations = vi.spyOn(candidateState, "readUpdateDatabaseGenerationsIsolated");
+  const scope = createOpenClawDatabaseMaintenanceScope({
+    schemaMaintenance: true,
+    assertOwnerCurrent: () => {},
+    assertDatabaseAccess: () => {},
+  });
+  try {
+    const captured = await scope.run(() =>
+      f.captureOriginal("large-maintenance-owned", { mode: "maintenance-owner" }),
+    );
+    const manifest = parseUpdateRecoveryBackupManifest(
+      await fs.readFile(captured.ref.manifestPath, "utf8"),
+    );
+    expect(worker.mock.calls.map(([request]) => request.input.mode)).toEqual([
+      "discover",
+      "database-backup",
+    ]);
+    expect(isolatedGenerations).not.toHaveBeenCalled();
+    expect(manifest.entries).toContainEqual(
+      expect.objectContaining({ sourcePath: f.shared, kind: "file", sqlite: true }),
+    );
+  } finally {
+    await scope.close();
+  }
+});
+
+it("rejects an already-aborted in-process size inventory", async () => {
+  const signal = AbortSignal.abort(new Error("inventory aborted"));
+  await expect(
+    databaseSizes.readUpdateStateDatabaseSizesInProcess(["never-read.sqlite"], signal),
+  ).rejects.toBe(signal.reason);
+});
+
 it("falls back to the isolated generation seal when live source reads were admitted", async () => {
   const f = await originalCaptureFixture();
   const original = await f.captureOriginal("isolated-steps");
