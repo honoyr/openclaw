@@ -584,7 +584,7 @@ export function captureUpdateRecoveryBaseline(params: {
   });
 }
 
-export const STANDALONE_DOCTOR_CAPTURE_RETENTION_MS = 30 * 24 * 60 * 60_000;
+const STANDALONE_DOCTOR_CAPTURE_RETENTION_MS = 30 * 24 * 60 * 60_000;
 
 /** Only sealed, unassociated standalone originals are eligible for retirement. */
 export async function retireExpiredStandaloneDoctorCaptures(params: {
