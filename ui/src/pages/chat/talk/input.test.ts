@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createDeferred } from "../../../../test/helpers/promise.js";
+import { createDeferred } from "../../../../../test/helpers/promise.js";
 import {
   discoverRealtimeTalkCameras,
   discoverRealtimeTalkInputs,
