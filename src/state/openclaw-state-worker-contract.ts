@@ -30,7 +30,6 @@ import type {
   RepositoryGitHubPublicationStatusRow,
 } from "../gateway/github-repository-publication.kernel.js";
 import type { ManagedImageRecordWorkerOperations } from "../gateway/managed-image-record-store.types.js";
-import type { OperatorApprovalWorkerOperations } from "../gateway/operator-approval-store.worker-contract.js";
 import type {
   SessionGroupCatalogMutation,
   SessionGroupCatalogMutationResult,
@@ -51,7 +50,6 @@ import type { DeliveryQueueWorkerOperations } from "../infra/delivery-queue.work
 import type * as deviceAuth from "../infra/device-auth-store.kernel.js";
 import type { DeviceIdentity } from "../infra/device-identity-store.js";
 import type { DevicePairingWorkerOperations } from "../infra/device-pairing-worker-contract.js";
-import type { ExecAuthorizationWorkerOperations } from "../infra/exec-approvals-contracts.js";
 import type { CurrentConversationBindingWorkerOperations } from "../infra/outbound/current-conversation-bindings.worker-contract.js";
 import type { PreparedPromotionClaim } from "../infra/promotions-feed.kernel.js";
 import type { SessionDeliveryWorkerOperations } from "../infra/session-delivery-queue.worker-contract.js";
@@ -128,8 +126,6 @@ export type OpenClawStateWorkerOperations = RegisteredStateWorkerOperations &
   McpOAuthWriteOperations &
   LegacyMcpOAuthWorkerOperations &
   DevicePairingWorkerOperations &
-  ExecAuthorizationWorkerOperations &
-  OperatorApprovalWorkerOperations &
   AuditWriterOperations &
   NativeHookRelayStoreWorkerOperations &
   TelemetryWorkerOperations &

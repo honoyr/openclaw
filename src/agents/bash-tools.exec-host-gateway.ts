@@ -5,11 +5,6 @@
  */
 import { isRecord } from "@openclaw/normalization-core/record-coerce";
 import { normalizeStringEntries } from "@openclaw/normalization-core/string-normalization";
-import {
-  buildCronExecOperationBinding,
-  consumeCronStandingGrant,
-  validateCronStandingGrant,
-} from "../gateway/operator-approval-standing-grants.js";
 import { emitAgentEvent } from "../infra/agent-events.js";
 import { describeInterpreterInlineEval } from "../infra/command-analysis/inline-eval.js";
 import { detectInlineEvalInSegments } from "../infra/command-analysis/risks.js";
@@ -64,8 +59,10 @@ import {
   GatewayDrainingError,
   runWithGatewayIndependentRootWorkAdmission,
 } from "../process/gateway-work-admission.js";
+import { captureAgentToolSourceExecutionGuard } from "./agent-tool-source-execution-guard.js";
 import { markBackgrounded, tail } from "./bash-process-registry.js";
 import {
+  buildGatewayExecApprovalDeniedToolResult,
   buildExecAutoReviewDeniedToolResult,
   formatExecApprovalContinuationSourceOutput,
 } from "./bash-tools.exec-approval-output.js";
@@ -73,6 +70,7 @@ import {
   buildExecApprovalTurnSourceContext,
   registerExecApprovalRequestForHostOrThrow,
 } from "./bash-tools.exec-approval-request.js";
+import { resolveCronStandingGrantExecution } from "./bash-tools.exec-cron-grants.js";
 import type {
   ProcessGatewayAllowlistParams,
   ProcessGatewayAllowlistResult,
@@ -300,29 +298,6 @@ function buildGatewayExecApprovalFollowupSummary(params: {
       : `Exec finished (gateway id=${params.approvalId}, session=${params.sessionId}, ${exitLabel})`;
   }
   return appendExecTimeoutRetryGuidance(summary, params.outcome.exitReason);
-}
-
-function buildGatewayExecApprovalDeniedToolResult(params: {
-  approvalId?: string;
-  deniedReason: string;
-  command: string;
-  cwd: string;
-}): AgentToolResult<ExecToolDetails> {
-  const denialContext = params.approvalId
-    ? `gateway id=${params.approvalId}, ${params.deniedReason}`
-    : params.deniedReason;
-  const text = `Exec denied (${denialContext}): ${params.command}`;
-  return {
-    content: [{ type: "text", text }],
-    details: {
-      status: "failed",
-      exitCode: null,
-      durationMs: 0,
-      aggregated: text,
-      timedOut: params.deniedReason.includes("timeout"),
-      cwd: params.cwd,
-    },
-  };
 }
 
 async function resolveGatewayExecApprovalDrift(params: {
@@ -764,12 +739,7 @@ export async function processGatewayAllowlist(
   }
   const mutableFileApprovalRequiresOneShot =
     mutableFileBinding?.operands.some((operand) => operand.kind === "mutable") ?? false;
-  // Cron standing grants: a prior allow-always for this exact job + operation
-  // minted a scoped SQLite grant instead of a JSON allowlist digest. Consult it
-  // before prompting; any validation failure falls through to the normal prompt
-  // path (fail closed to prompting, never to silent execution or denial).
-  // Special approval classes (inline eval, heredoc) and
-  // mutable operands keep prompting — mirroring one-shot durable-trust guards.
+  // Mutable operands and special approval classes retain their one-shot review.
   const cronExecutionSource =
     params.runId && params.agentId ? lookupCronRunExecSource(params.runId) : undefined;
   const cronStandingGrantEligible =
@@ -784,60 +754,29 @@ export async function processGatewayAllowlist(
     !requiresInlineEvalApproval &&
     !requiresHeredocApproval;
   if (cronStandingGrantEligible) {
-    const grantLookup = {
-      agentId: cronExecutionSource.agentId,
-      cronJobId: cronExecutionSource.jobId,
-      jobConfigRevision: cronExecutionSource.jobConfigRevision,
-      operationBinding: buildCronExecOperationBinding({
-        command: params.command,
-        cwd: params.workdir,
-        env: params.requestedEnv,
-      }),
+    const assertSourceCurrent = captureAgentToolSourceExecutionGuard(params.signal);
+    const assertGrantCurrent = () => {
+      assertSourceCurrent();
+      if (lookupCronRunExecSource(params.runId) !== cronExecutionSource) {
+        throw new Error("Cron execution source is no longer active");
+      }
     };
-    let grantCheck: ReturnType<typeof validateCronStandingGrant> | undefined;
-    try {
-      grantCheck = validateCronStandingGrant(grantLookup);
-    } catch {
-      grantCheck = undefined;
-    }
-    if (grantCheck?.outcome === "consumed") {
-      const emitGrantEvent = (approved: boolean, reason: string) =>
+    const grant = await resolveCronStandingGrantExecution(
+      params,
+      cronExecutionSource,
+      assertGrantCurrent,
+      (approved, reason) =>
         emitApprovalEvent({
           action: approved ? "exec.approval.approved" : "exec.approval.denied",
           outcome: approved ? "success" : "denied",
           severity: "medium",
           reason,
           decision: "standing-grant",
-        });
-      return {
-        execCommandOverride: enforcedCommand,
-        // Durable authority is recorded only at the final effect: awaited
-        // pre-spawn work (script preflight) can outlive a revocation or job
-        // edit, so the grant is re-verified and consumed right before the
-        // process spawns and any failure denies instead of executing.
-        revalidateBeforeExecution: async () => {
-          let grantUse: ReturnType<typeof consumeCronStandingGrant> | undefined;
-          try {
-            grantUse = consumeCronStandingGrant(grantLookup);
-          } catch {
-            grantUse = undefined;
-          }
-          if (grantUse?.outcome === "consumed") {
-            emitGrantEvent(
-              true,
-              `standing-grant grant=${grantUse.grant.grantId} approval=${grantUse.grant.mintedByApprovalId}`,
-            );
-            return undefined;
-          }
-          const invalidReason = grantUse?.outcome ?? "grant-store-unavailable";
-          emitGrantEvent(false, `standing-grant-invalidated ${invalidReason}`);
-          return buildGatewayExecApprovalDeniedToolResult({
-            deniedReason: `standing grant no longer valid (${invalidReason}); the next occurrence will prompt for approval again`,
-            command: params.command,
-            cwd: params.workdir,
-          });
-        },
-      };
+        }),
+    );
+    assertGrantCurrent();
+    if (grant) {
+      return { ...grant, execCommandOverride: enforcedCommand };
     }
   }
   const requiresAsk =

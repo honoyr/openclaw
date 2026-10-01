@@ -42,10 +42,6 @@ import {
   executeManagedImageRecordCommand,
   isManagedImageRecordCommand,
 } from "../gateway/managed-image-record-store.kernel.js";
-import {
-  executeOperatorApprovalCommand,
-  isOperatorApprovalCommand,
-} from "../gateway/operator-approval-store.worker.js";
 import { mutateSessionGroupCatalogInDatabase } from "../gateway/session-group-catalog.kernel.js";
 import { isWorkerInferenceStoreCommand } from "../gateway/worker-environments/inference-store.worker-contract.js";
 import { executeWorkerInferenceStoreCommand } from "../gateway/worker-environments/inference-store.worker.js";
@@ -66,7 +62,6 @@ import * as deliveryQueue from "../infra/delivery-queue.worker.js";
 import * as deviceAuth from "../infra/device-auth-store.kernel.js";
 import { executeDevicePairingMutationInWorker } from "../infra/device-pairing-dispatch.worker.js";
 import { isDevicePairingMutationCommand } from "../infra/device-pairing-worker-contract.js";
-import { commitExecAuthorizationsInWorker } from "../infra/exec-approvals-authorization.worker.js";
 import * as conversationBindings from "../infra/outbound/current-conversation-bindings.worker.js";
 import { executePromotionCommand } from "../infra/promotions-feed.worker.js";
 import { isSessionDeliveryCommand } from "../infra/session-delivery-queue.worker-contract.js";
@@ -197,15 +192,6 @@ export function executeSharedStateCommand(
   }
   if (isLegacyMcpOAuthWorkerCommand(command)) {
     return executeLegacyMcpOAuthWorkerCommand(open(), command);
-  }
-  if (command.type === "execApprovals.commitAuthorizations" || isOperatorApprovalCommand(command)) {
-    const databaseOptions = {
-      database: open(),
-      ...stateOptions(),
-    };
-    return command.type === "execApprovals.commitAuthorizations"
-      ? commitExecAuthorizationsInWorker(command.input, databaseOptions)
-      : executeOperatorApprovalCommand(command, databaseOptions);
   }
   if (isDevicePairingMutationCommand(command)) {
     return executeDevicePairingMutationInWorker(command, open());

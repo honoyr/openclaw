@@ -40,6 +40,11 @@ import type {
 import type { CronQuarantinedJob } from "../cron/types-shared.js";
 import type { FleetCellRecord } from "../fleet/registry.types.js";
 import type {
+  ConsumeCronStandingGrantResult,
+  CronStandingGrantListing,
+  CronStandingGrantLookupParams,
+} from "../gateway/operator-approval-standing-grants.js";
+import type {
   ListTerminalOperatorApprovalsInput,
   ListTerminalOperatorApprovalsResult,
 } from "../gateway/operator-approval-store.types.js";
@@ -163,6 +168,8 @@ export type OpenClawStateReadCommand =
       type: "operatorApprovals.history";
       input: ListTerminalOperatorApprovalsInput;
     }
+  | { type: "operatorApprovals.validateCronGrant"; input: CronStandingGrantLookupParams }
+  | { type: "operatorApprovals.listCronGrants"; input: { limit?: number } }
   | PluginBlobReadCommand
   | { type: "subagents.sessionList" }
   | {
@@ -308,6 +315,8 @@ export type OpenClawStateReadResult =
       type: "operatorApprovals.history";
       history: ListTerminalOperatorApprovalsResult;
     }
+  | { type: "operatorApprovals.validateCronGrant"; grant: ConsumeCronStandingGrantResult }
+  | { type: "operatorApprovals.listCronGrants"; grants: CronStandingGrantListing[] }
   | ReadResult<PluginBlobReadReply>
   | {
       type: "capture.readOnlyEvents";

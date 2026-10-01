@@ -21,10 +21,15 @@ import { createLazyRuntimeModule } from "../shared/lazy-runtime.js";
 import { isStateDatabaseReadAdmissionInvalidatedError } from "../state/openclaw-state-db-async-lifecycle.js";
 import { executeExistingOpenClawStateRead } from "../state/openclaw-state-db-readonly.js";
 import type { OpenClawStateDatabaseOptions } from "../state/openclaw-state-db.js";
+import type {
+  OpenClawStateReadCommand,
+  OpenClawStateReadResult,
+} from "../state/openclaw-state-read.types.js";
 import { captureOpenClawStateWorkerContext } from "../state/openclaw-state-worker-context.js";
 import type { OpenClawStateWorkerContext } from "../state/openclaw-state-worker-context.types.js";
 import type { OpenClawStateWorkerOperationOptions } from "../state/openclaw-state-worker-contract.js";
 import { runOpenClawStateWorkerOperation } from "../state/openclaw-state-worker-store.js";
+import type { CronStandingGrantLookupParams } from "./operator-approval-standing-grants.js";
 import { decodeOperatorApprovalHistoryCursor } from "./operator-approval-store.rows.js";
 import type {
   ListTerminalOperatorApprovalsInput,
@@ -230,18 +235,16 @@ export function consumeOperatorApprovalAllowOnce(params: Input<"operatorApproval
   return execute("operatorApprovals.consume", input, { databaseOptions, assertCurrent, guard });
 }
 
-export async function listTerminalOperatorApprovals(
-  params: ListTerminalOperatorApprovalsInput & Options = {},
-): Promise<ListTerminalOperatorApprovalsResult> {
-  const { databaseOptions, assertCurrent, guard, ...input } = params;
-  if (input.cursor !== undefined) {
-    decodeOperatorApprovalHistoryCursor(input.cursor);
-  }
+async function readApprovalStore<T>(
+  command: Extract<OpenClawStateReadCommand, { type: `operatorApprovals.${string}` }>,
+  { databaseOptions, assertCurrent, guard }: Options,
+  project: (result: OpenClawStateReadResult) => T | undefined,
+): Promise<T> {
   const context = captureOpenClawStateWorkerContext({
     ...databaseOptions,
     path: databaseOptions?.database?.path ?? databaseOptions?.path,
   });
-  const captured = structuredClone(input);
+  const captured = structuredClone(command);
   const assertOperationCurrent = () => {
     context.admission.assertCurrent();
     guard?.assertCurrent();
@@ -257,15 +260,66 @@ export async function listTerminalOperatorApprovals(
       preparation.release();
       const result = await executeExistingOpenClawStateRead(
         { env: context.environment, path: context.admission.databasePath },
-        { type: "operatorApprovals.history", input: captured },
+        captured,
       );
       assertOperationCurrent();
-      if (result?.ok && result.type === "operatorApprovals.history") {
-        return result.history;
+      const value = result?.ok && result.type === command.type ? project(result) : undefined;
+      if (value !== undefined) {
+        return value;
       }
-      throw new Error("Operator approval history database became unavailable");
+      throw new Error("Operator approval database became unavailable");
     },
     undefined,
     assertOperationCurrent,
   );
+}
+
+export async function listTerminalOperatorApprovals(
+  params: ListTerminalOperatorApprovalsInput & Options = {},
+): Promise<ListTerminalOperatorApprovalsResult> {
+  const { databaseOptions, assertCurrent, guard, ...input } = params;
+  if (input.cursor !== undefined) {
+    decodeOperatorApprovalHistoryCursor(input.cursor);
+  }
+  return readApprovalStore(
+    { type: "operatorApprovals.history", input },
+    { databaseOptions, assertCurrent, guard },
+    (result) => (result.type === "operatorApprovals.history" ? result.history : undefined),
+  );
+}
+
+export function validateCronStandingGrant(params: CronStandingGrantLookupParams & Options) {
+  const { databaseOptions, assertCurrent, guard, ...input } = params;
+  return readApprovalStore(
+    { type: "operatorApprovals.validateCronGrant", input },
+    { databaseOptions, assertCurrent, guard },
+    (result) => (result.type === "operatorApprovals.validateCronGrant" ? result.grant : undefined),
+  );
+}
+
+export function listCronStandingGrants(params: { limit?: number } & Options = {}) {
+  const { databaseOptions, assertCurrent, guard, ...input } = params;
+  return readApprovalStore(
+    { type: "operatorApprovals.listCronGrants", input },
+    { databaseOptions, assertCurrent, guard },
+    (result) => (result.type === "operatorApprovals.listCronGrants" ? result.grants : undefined),
+  );
+}
+
+export function consumeCronStandingGrant(params: Input<"operatorApprovals.consumeCronGrant">) {
+  const { databaseOptions, assertCurrent, guard, ...input } = params;
+  return execute("operatorApprovals.consumeCronGrant", input, {
+    databaseOptions,
+    assertCurrent,
+    guard,
+  });
+}
+
+export function revokeCronStandingGrant(params: Input<"operatorApprovals.revokeCronGrant">) {
+  const { databaseOptions, assertCurrent, guard, ...input } = params;
+  return execute("operatorApprovals.revokeCronGrant", input, {
+    databaseOptions,
+    assertCurrent,
+    guard,
+  });
 }
