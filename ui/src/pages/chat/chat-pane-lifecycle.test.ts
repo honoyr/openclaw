@@ -14,6 +14,7 @@ import { loadSettings, patchSettings } from "../../app/settings.ts";
 import { t } from "../../i18n/index.ts";
 import type { SessionCapability } from "../../lib/sessions/index.ts";
 import { createStorageMock } from "../../test-helpers/storage.ts";
+import { createMountedPanes } from "./chat-pane-mounted.test-support.ts";
 import {
   createGatewayBrowserClientFixture,
   createInitializationContext,
@@ -744,4 +745,22 @@ describe("chat pane presentation teardown", () => {
       true,
     );
   });
+});
+
+it("settles a freshly connected pane's boot updates", async () => {
+  vi.useFakeTimers();
+  const key = "agent:main:frame-boot";
+  const fixture = createMountedPanes([{ key, kind: "direct", updatedAt: 1 }]);
+  const updates = vi.spyOn(fixture.pane, "performUpdate");
+  const pane = fixture.mount(key);
+  await pane.updateComplete;
+  expect(updates).toHaveBeenCalledTimes(1);
+  await vi.dynamicImportSettled();
+  await vi.advanceTimersByTimeAsync(160);
+  await vi.dynamicImportSettled();
+  await vi.advanceTimersByTimeAsync(160);
+  console.info(`Fresh pane boot: ${updates.mock.calls.length} updates`);
+  expect(updates.mock.calls.length).toBeLessThanOrEqual(3);
+  expect(pane.querySelector(".agent-chat__composer-combobox textarea")).not.toBeNull();
+  expect(pane.state.chatLoading).toBe(false);
 });
