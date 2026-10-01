@@ -690,7 +690,6 @@ describe("subagent orphan recovery — faithful restart path", () => {
         runId: nextRunId,
         source: retired,
         storePath,
-        requireSource: true,
       });
       addSubagentRunForTests(
         makeRunRecord({
