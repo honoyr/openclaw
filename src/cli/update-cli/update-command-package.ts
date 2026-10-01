@@ -404,18 +404,15 @@ export async function runPackageUpdateDoctor(params: PackageDoctorOptions) {
   } catch (error) {
     outcome = { error };
   }
-  if (processSettlement) {
-    completedSteps.unshift(processSettlement);
-  }
   try {
-    params.results?.push(...completedSteps);
+    params.results?.push(...(processSettlement ? [processSettlement] : []), ...completedSteps);
     if (processSettlement) {
       params.progress?.onStepComplete?.({ ...processSettlement, index: 0, total: 0 });
     }
   } catch (error) {
     if ("error" in outcome) {
       throw new AggregateError([outcome.error, error], "Doctor settlement recording failed", {
-        cause: outcome.error,
+        cause: error,
       });
     }
     throw error;

@@ -372,8 +372,8 @@ export async function runUpdateFinalizationDoctorInFreshProcess(params: {
           throw new UpdateDoctorError(message, failureFacts, { cause: error, exitCode });
         }
       }
-    } catch (error) {
-      failure = { error };
+    } catch (classificationError) {
+      failure = { error: classificationError };
     }
   }
   try {
@@ -424,7 +424,7 @@ export async function runUpdateFinalizationDoctorInFreshProcess(params: {
     failure = {
       error: failure
         ? new AggregateError([failure.error, error], "Doctor result recording failed", {
-            cause: failure.error,
+            cause: error,
           })
         : error,
     };

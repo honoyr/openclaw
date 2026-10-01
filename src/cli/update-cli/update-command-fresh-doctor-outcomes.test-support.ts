@@ -168,12 +168,15 @@ export function registerFreshDoctorOutcomeTests(
       }).catch((cause: unknown) => cause);
       expect(error).toBeInstanceOf(AggregateError);
       expect(error).toMatchObject({
-        cause: {
-          ...(fault !== "settled" ? { cause: original } : {}),
-          refusal,
-          failureFacts: [{ check: "state", code: "step-refused" }],
-        },
-        errors: [expect.objectContaining({ refusal }), recording],
+        cause: recording,
+        errors: [
+          expect.objectContaining({
+            ...(fault !== "settled" ? { cause: original } : {}),
+            refusal,
+            failureFacts: [{ check: "state", code: "step-refused" }],
+          }),
+          recording,
+        ],
       });
       expect(hasCommandProcessCleanupError(error)).toBe(fault === "cleanup");
       expect(mocks.readConfig).not.toHaveBeenCalled();

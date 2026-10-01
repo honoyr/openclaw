@@ -36,12 +36,11 @@ it.each([false, true])(
           [{ check: "doctor", code: "doctor-failed", message }],
           { exitCode: 23 },
         );
+        const recording = new Error("Warning output failed");
         throw nested
-          ? new AggregateError(
-              [refusal, new Error("Warning output failed")],
-              "Doctor result recording failed",
-              { cause: refusal },
-            )
+          ? new AggregateError([refusal, recording], "Doctor result recording failed", {
+              cause: recording,
+            })
           : refusal;
       }),
     ).rejects.toThrow(nested ? "Doctor result recording failed" : message);
