@@ -243,10 +243,6 @@ describe("CLI attempt execution", () => {
       "agentDir" | "workspaceDir" | "sessionEntry"
     > & {
       config?: OpenClawConfig;
-      subagentAnnounceEnvelope?: Pick<
-        SubagentAnnounceDeliveryCase,
-        "inheritedToolAllow" | "inheritedToolDeny"
-      >;
       sessionEntry?: Partial<SessionEntry>;
       additionalSessionEntries?: Record<string, Partial<SessionEntry>>;
     } = {},
@@ -255,16 +251,13 @@ describe("CLI attempt execution", () => {
       runId = "run-embedded-live-stream-gate",
       sessionKey = `agent:main:direct:${runId}`,
       sessionEntry: entry,
-      subagentAnnounceEnvelope,
       additionalSessionEntries = {},
       config = { session: { store: storePath } },
       opts,
       ...attempt
     } = overrides;
     const sessionEntry = makeSessionEntry(`session-${runId}`, entry);
-    const sessionStore = subagentAnnounceEnvelope
-      ? createSubagentAnnounceSessionStore(sessionKey, sessionEntry, subagentAnnounceEnvelope)
-      : { [sessionKey]: sessionEntry };
+    const sessionStore = { [sessionKey]: sessionEntry };
     for (const [additionalSessionKey, additionalEntry] of Object.entries(
       additionalSessionEntries,
     )) {
@@ -1975,95 +1968,64 @@ describe("CLI attempt execution", () => {
     };
   }
 
-  it.each(SUBAGENT_ANNOUNCE_DELIVERY_CASES)(
-    "bounds CLI subagent completion handoff tools for $name",
-    async (testCase) => {
-      const {
-        sourceReplyDeliveryMode,
-        requireExplicitMessageTarget,
-        expectedDisableTools,
-        expectedToolsAllow,
-      } = testCase;
-      const sessionKey = "agent:main:direct:claude-announce";
-      const sessionEntry = makeSessionEntry("openclaw-session-cli-announce");
-      const sessionStore = createSubagentAnnounceSessionStore(sessionKey, sessionEntry, testCase);
-      await writeSessionStoreSeed(sessionStore);
-      runCliAgentMock.mockResolvedValueOnce(makeCliResult("completion announce"));
+  it.each([
+    ...SUBAGENT_ANNOUNCE_DELIVERY_CASES.map((testCase) =>
+      Object.assign({ provider: "claude-cli" }, testCase),
+    ),
+    ...SUBAGENT_ANNOUNCE_EMBEDDED_DELIVERY_CASES.map((testCase) =>
+      Object.assign({ provider: "openai" }, testCase),
+    ),
+  ])("bounds $provider subagent completion handoff tools for $name", async (testCase) => {
+    const { provider } = testCase;
+    const cli = provider === "claude-cli";
+    const model = cli ? "opus" : "gpt-5.4";
+    const sessionKey = `agent:main:direct:${provider}-announce`;
+    const sessionEntry = makeSessionEntry(`openclaw-session-${provider}-announce`);
+    const sessionStore = createSubagentAnnounceSessionStore(sessionKey, sessionEntry, testCase);
+    await writeSessionStoreSeed(sessionStore);
+    const selectedRunner = cli ? runCliAgentMock : runEmbeddedAgentMock;
+    selectedRunner.mockResolvedValueOnce(
+      cli ? makeCliResult("completion announce") : { meta: { durationMs: 1 } },
+    );
 
-      await runStoredAttempt({
-        providerOverride: "claude-cli",
-        modelOverride: "opus",
-        cfg: announceConfig(testCase),
-        sessionEntry,
-        sessionKey,
-        body: "A background task finished. Process the completion update now.",
-        runId: "run-cli-announce",
-        opts: createSubagentAnnounceHandoffOptions({
-          ...testCase,
-          targetSessionKey: sessionKey,
-          targetSessionId: sessionEntry.sessionId,
-          provider: "claude-cli",
-          model: "opus",
-        }),
-        messageChannel: "telegram",
-        sessionStore,
-      });
+    await runStoredAttempt({
+      providerOverride: provider,
+      modelOverride: model,
+      cfg: announceConfig(testCase),
+      sessionEntry,
+      sessionKey,
+      body: "A background task finished. Process the completion update now.",
+      runId: `run-${provider}-announce`,
+      opts: createSubagentAnnounceHandoffOptions({
+        ...testCase,
+        targetSessionKey: sessionKey,
+        targetSessionId: sessionEntry.sessionId,
+        provider,
+        model,
+      }),
+      messageChannel: "telegram",
+      sessionStore,
+    });
 
-      expectMockArgFields(runCliAgentMock, {
-        provider: "claude-cli",
-        sourceReplyDeliveryMode,
-        requireExplicitMessageTarget: requireExplicitMessageTarget === true,
-        toolsAllow: expectedToolsAllow,
-        disableTools: expectedDisableTools,
-        allowEmptyAssistantReplyAsSilent: true,
-      });
-      expect(runEmbeddedAgentMock).not.toHaveBeenCalled();
-    },
-  );
-
-  it.each(SUBAGENT_ANNOUNCE_EMBEDDED_DELIVERY_CASES)(
-    "bounds embedded subagent completion handoff tools for $name",
-    async (testCase) => {
-      const {
-        sourceReplyDeliveryMode,
-        disableMessageTool,
-        requireExplicitMessageTarget,
-        modelRun,
-        promptMode,
-        expectedDisableTools,
-        expectedToolsAllow,
-      } = testCase;
-      const runId = `embedded-announce-${sourceReplyDeliveryMode}-${disableMessageTool}`;
-      const sessionKey = `agent:main:direct:${runId}`;
-      const sessionId = `session-${runId}`;
-      const embeddedArg = await runOpenClawEmbeddedAttemptForTest({
-        runId,
-        body: "A background task finished. Process the completion update now.",
-        config: announceConfig(testCase),
-        subagentAnnounceEnvelope: testCase,
-        opts: createSubagentAnnounceHandoffOptions({
-          ...testCase,
-          targetSessionKey: sessionKey,
-          targetSessionId: sessionId,
-          provider: "openai",
-          model: "gpt-5.4",
-        }),
-      });
-
-      expectRecordFields(embeddedArg, {
-        provider: "openai",
-        sourceReplyDeliveryMode,
-        requireExplicitMessageTarget,
-        toolsAllow: expectedToolsAllow,
-        disableTools: expectedDisableTools,
-        disableMessageTool: disableMessageTool || undefined,
-        modelRun: modelRun || undefined,
-        promptMode,
-        allowEmptyAssistantReplyAsSilent: true,
-      });
-      expect(runCliAgentMock).not.toHaveBeenCalled();
-    },
-  );
+    expectMockArgFields(selectedRunner, {
+      provider,
+      sourceReplyDeliveryMode: testCase.sourceReplyDeliveryMode,
+      requireExplicitMessageTarget: cli
+        ? testCase.requireExplicitMessageTarget === true
+        : testCase.requireExplicitMessageTarget,
+      toolsAllow: testCase.expectedToolsAllow,
+      disableTools: testCase.expectedDisableTools,
+      terminalReplyExpectation: "optional",
+      ...(!cli
+        ? {
+            disableMessageTool: testCase.disableMessageTool || undefined,
+            modelRun: testCase.modelRun || undefined,
+            promptMode: testCase.promptMode,
+          }
+        : {}),
+    });
+    expect(cli ? runEmbeddedAgentMock : runCliAgentMock).not.toHaveBeenCalled();
+  });
 
   it.each([
     {
@@ -2257,9 +2219,45 @@ describe("CLI attempt execution", () => {
     });
 
     expect(embeddedArg.suppressLiveStreamOutput).toBe(false);
-    expect(embeddedArg.terminalReplyExpectation).toBe("optional");
-    expect(embeddedArg.allowEmptyAssistantReplyAsSilent).toBe(true);
+    expect(embeddedArg.terminalReplyExpectation).toBe("required");
   });
+
+  it.each(["openai", "claude-cli"])(
+    "requires %s results for internal sessions and children with a channel origin",
+    async (providerOverride) => {
+      for (const [sessionKey, messageChannel, privateCompletion] of [
+        ["agent:main:subagent:reply-required", "discord"],
+        ["agent:main:direct:reply-required", "webchat"],
+        ["agent:main:direct:private-reply-required", "telegram", true],
+      ] as const) {
+        const sessionEntry = makeSessionEntry(`session-${messageChannel}`);
+        const sessionStore = await seedSessionStore(sessionKey, sessionEntry);
+        runCliAgentMock.mockResolvedValueOnce(makeCliResult("review complete"));
+        runEmbeddedAgentMock.mockResolvedValueOnce({ meta: { durationMs: 1 } });
+
+        await runStoredAttempt({
+          providerOverride,
+          modelOverride: providerOverride === "openai" ? "gpt-5.4" : "opus",
+          sessionEntry,
+          sessionKey,
+          sessionStore,
+          messageChannel,
+          opts: {
+            privateCompletion,
+            inputProvenance: { kind: "inter_session", sourceTool: "subagent_announce" },
+          },
+        });
+
+        const selectedRunner =
+          providerOverride === "openai" ? runEmbeddedAgentMock : runCliAgentMock;
+        expectMockArgFields(
+          selectedRunner,
+          { terminalReplyExpectation: "required", silentReplyPromptMode: "none" },
+          selectedRunner.mock.calls.length - 1,
+        );
+      }
+    },
+  );
 
   it("forwards exact cron creator authority into embedded execution", async () => {
     const runId = "embedded-cron-creator-authority";

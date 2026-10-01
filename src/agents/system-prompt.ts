@@ -70,7 +70,7 @@ import type {
   ProviderSystemPromptContribution,
   ProviderSystemPromptSectionId,
 } from "./system-prompt-contribution.js";
-import { buildMessagingSection } from "./system-prompt-messaging.js";
+import { buildMessagingSection, resolveSilentReplyPromptMode } from "./system-prompt-messaging.js";
 import { buildSystemPromptToolLines } from "./system-prompt-tool-list.js";
 import type {
   PromptMode,
@@ -523,7 +523,7 @@ export function buildAgentSystemPrompt(params: {
   ttsHint?: string;
   /** Controls which hardcoded sections to include. Defaults to "full". */
   promptMode?: PromptMode;
-  /** Controls the generic silent-reply section. Channel-aware prompts can set "none". */
+  /** Controls generic silent-reply guidance for external message channels. */
   silentReplyPromptMode?: SilentReplyPromptMode;
   sourceReplyDeliveryMode?: SourceReplyDeliveryMode;
   requireExplicitMessageTarget?: boolean;
@@ -678,9 +678,7 @@ export function buildAgentSystemPrompt(params: {
   const messageChannelOptions = availableTools.has("message")
     ? buildMessageChannelOptions(runtimeChannel)
     : undefined;
-  const silentReplyPromptMode = sourceMessageToolOnly
-    ? "none"
-    : (params.silentReplyPromptMode ?? "generic");
+  const silentReplyPromptMode = resolveSilentReplyPromptMode(params);
   const sandboxContainerWorkspace = params.sandboxInfo?.containerWorkspaceDir?.trim();
   const sanitizedWorkspaceDir = sanitizeForPromptLiteral(params.workspaceDir);
   const runtimeCwd = params.runtimeCwd ?? params.workspaceDir;

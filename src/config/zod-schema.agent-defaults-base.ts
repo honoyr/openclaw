@@ -49,7 +49,6 @@ const EmbeddedAgentConfigSchema = z.strictObject({
 
 export const SilentReplyPolicyConfigSchema = z.strictObject({
   group: SilentReplyPolicySchema.optional(),
-  internal: SilentReplyPolicySchema.optional(),
 });
 
 const AgentOwnerTargetSchema = z

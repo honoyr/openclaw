@@ -14,8 +14,8 @@ Sub-agents report back via an announce step:
 - The announce step runs inside the sub-agent session (not the requester session).
 - Runs spawned with `expectsCompletionMessage: false` skip the announce step entirely; the run registry records their delivery as not required.
 - An exact `ANNOUNCE_SKIP` response suppresses announce output.
-- For completion-required runs, an exact child `NO_REPLY` response or no output is a missing deliverable handed to the requester/parent for visible representation or retry; it is not credited as silent delivery.
-- Optional, duplicate, already-visible, or otherwise non-required paths may use exact `NO_REPLY` for intentional silence.
+- Subagents must return a meaningful result or a concrete blocker. An exact child `NO_REPLY` response or no output triggers the normal missing-answer recovery; it cannot complete a child task.
+- Duplicate delivery is suppressed through recorded completion and source-message delivery facts. Subagents and internal parent review turns do not use silent tokens for deduplication.
 
 By default, delivery depends on requester depth:
 
@@ -53,10 +53,11 @@ child's result remains available for recovery.
 ### Private parent completion
 
 Set `completionTarget: "parent"` on `sessions_spawn` to return the result in a
-private turn of the original requester session. The parent can inspect the result,
-start another child, or reply `NO_REPLY`. OpenClaw does not automatically send the
-child result, parent final, or generated media to a channel. The parent can still
-choose to send a message through its permitted tools.
+private turn of the original requester session. The parent reviews the result,
+continues unfinished work, and records the reviewed outcome in its internal final
+reply. OpenClaw does not automatically send the child result, parent final, or
+generated media to a channel. The parent can still choose to send a message
+through its permitted tools.
 
 This option supports hidden, native, one-shot runs only. It cannot be combined
 with ACP, `collect: true`, `visible: true`, `thread: true`, `mode: "session"`, or

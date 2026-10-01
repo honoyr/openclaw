@@ -24,14 +24,37 @@ import {
   type ClaudeCliFallbackSeed,
   readClaudeCliFallbackSeed,
 } from "../../gateway/cli-session-history.js";
+import { isSubagentSessionKey } from "../../routing/session-key.js";
+import { isDeliverableMessageChannel } from "../../utils/message-channel.js";
 import { buildAgentRunTerminalReplySnapshot } from "../agent-run-terminal-reply.js";
 import type { AgentRunTerminalReplySnapshot } from "../agent-run-terminal-reply.types.js";
 import type { ExecApprovalContinuationPromptRange } from "../bash-tools.exec-approval-output.js";
 import { isClaudeToolResultBlockType, isClaudeToolUseBlockType } from "../cli-output-records.js";
 import { cliBackendLog } from "../cli-runner/log.js";
+import { AGENT_LANE_SUBAGENT } from "../lanes.js";
+import type { ReplyExpectation } from "../reply-completion.js";
 import { resolveClaudeCliProjectDirForWorkspace } from "./claude-cli-project-dir.js";
 
 const CLAUDE_CLI_TRANSCRIPT_MAX_RECORDS = 500;
+
+export function resolveCommandReplyExpectation(
+  params: {
+    sessionKey?: string;
+    messageChannel?: string;
+    opts: { lane?: string; privateCompletion?: true };
+  },
+  channelCompletionHandoff: boolean,
+): ReplyExpectation | undefined {
+  if (
+    params.opts.privateCompletion ||
+    params.opts.lane === AGENT_LANE_SUBAGENT ||
+    isSubagentSessionKey(params.sessionKey) ||
+    !isDeliverableMessageChannel(params.messageChannel ?? "")
+  ) {
+    return "required";
+  }
+  return channelCompletionHandoff ? "optional" : undefined;
+}
 
 function normalizeClaudeCliSessionId(sessionId: string | undefined): string | undefined {
   const trimmed = sessionId?.trim();

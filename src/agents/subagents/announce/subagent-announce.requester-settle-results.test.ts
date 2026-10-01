@@ -47,7 +47,8 @@ describe("maybeWakeRequesterAfterAllChildrenSettled results", () => {
     expect(message).toContain("settled");
     expect(message).toContain("social findings");
     expect(message).toContain("network findings");
-    expect(message).toContain("NO_REPLY");
+    expect(message).not.toContain("NO_REPLY");
+    expect(message).toContain("continue any unfinished work");
   });
 
   it("delivers the complete final source reply after a same-run silent terminal", async () => {

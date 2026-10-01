@@ -7,6 +7,7 @@ import type { LegacyConfigMigrationContext } from "../../../config/legacy.shared
 import type { OpenClawConfig } from "../../../config/types.js";
 import { legacyCodexProviderIdentityKey } from "./codex-route-model-ref.js";
 import { pruneBindingsForMissingAgents } from "./legacy-config-binding-repair.js";
+import { registerLegacySilentReplyConfigMigrationTests } from "./legacy-config-migrate.silent-reply.test-support.js";
 import { LEGACY_CONFIG_MIGRATIONS } from "./legacy-config-migrations.js";
 import { collectBlockedLegacyOpenAICodexProviderPlan } from "./legacy-config-migrations.runtime.models.js";
 
@@ -494,28 +495,7 @@ describe("legacy Codex provider config migrate", () => {
   });
 });
 
-describe("legacy silent reply config migrate", () => {
-  it("removes silent reply rewrite and direct-chat silent reply config", () => {
-    const res = migrateLegacyConfigForTest({
-      agents: {
-        defaults: {
-          silentReply: { direct: "allow", group: "allow", internal: "allow" },
-          silentReplyRewrite: { direct: true, group: false },
-        },
-      },
-      surfaces: {
-        telegram: {
-          silentReply: { direct: "disallow", group: "allow" },
-          silentReplyRewrite: { direct: true },
-        },
-      },
-    });
-    expect(res.config?.agents?.defaults).toEqual({
-      silentReply: { group: "allow", internal: "allow" },
-    });
-    expect(res.config?.surfaces?.telegram).toEqual({ silentReply: { group: "allow" } });
-  });
-});
+registerLegacySilentReplyConfigMigrationTests(migrateLegacyConfigForTest);
 
 describe("legacy agent system prompt override config migrate", () => {
   it("removes default and per-agent system prompt overrides", () => {

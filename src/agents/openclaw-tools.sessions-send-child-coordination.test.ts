@@ -350,9 +350,14 @@ describe("sessions_send child coordination", () => {
     },
   );
 
-  it.each(["acknowledged", "ACK lost"] as const)(
-    "claims a queued watched follow-up after the original child wake was consumed (%s)",
-    async (acknowledgment) => {
+  it.each([
+    { acknowledgment: "acknowledged", watch: undefined },
+    { acknowledgment: "ACK lost", watch: false },
+    { acknowledgment: "acknowledged", watch: true },
+    { acknowledgment: "ACK lost", watch: true },
+  ] as const)(
+    "delivers a queued child follow-up after its original wake was consumed ($acknowledgment, watch=$watch)",
+    async ({ acknowledgment, watch }) => {
       const requesterSessionKey = "agent:main:dashboard:requester";
       const childSessionKey = "agent:main:dashboard:existing-child";
       const requesterTurnRunId = "followup-requester-turn";
@@ -405,6 +410,8 @@ describe("sessions_send child coordination", () => {
         }
         if (request.method === "agent") {
           return {
+            status: "ok",
+            inputProcessingCompleted: true,
             result: {
               payloads: [{ text: "Follow-up reached the requester" }],
               deliveryStatus: { status: "sent", resultCount: 1 },
@@ -424,7 +431,7 @@ describe("sessions_send child coordination", () => {
         }).execute("followup", {
           sessionKey: childSessionKey,
           mode: "followup",
-          watch: true,
+          ...(watch === undefined ? {} : { watch }),
           timeoutSeconds: 0,
           message: "Return the follow-up result",
         });
@@ -432,7 +439,7 @@ describe("sessions_send child coordination", () => {
           status: "accepted",
           runId,
           targetDisposition: "queued",
-          watched: true,
+          ...(watch ? { watched: true } : {}),
           delivery: { status: "pending", mode: "announce" },
         });
         const onYield = vi.fn();
@@ -461,17 +468,26 @@ describe("sessions_send child coordination", () => {
             (call) => call.method === "agent" && call.params?.sessionKey === requesterSessionKey,
           );
         expect(requesterCalls()).toHaveLength(0);
-        const delivered = new Promise<void>((resolve) => {
+        const settled = new Promise<void>((resolve) => {
           stopObserving = onSubagentRegistryPersisted(() => {
             const child = getSubagentRunByRunId(runId);
-            if (child?.delivery?.status === "delivered" && !child.requesterSettleWake) {
+            if (
+              !child ||
+              child.delivery?.status === "suspended" ||
+              child.delivery?.status === "discarded" ||
+              child.delivery?.disposition === "permanent_failure" ||
+              ((child.delivery?.status === "delivered" || child.cleanupCompletedAt !== undefined) &&
+                !child.requesterSettleWake)
+            ) {
               resolve();
             }
           });
         });
         finishChild();
-        await delivered;
+        await settled;
         await settleSessionWork();
+        expect(getSubagentRunByRunId(runId)).toMatchObject({ delivery: { status: "delivered" } });
+        expect(getSubagentRunByRunId(runId)?.requesterSettleWake).toBeUndefined();
         expect(requesterCalls()).toHaveLength(1);
         expect(requesterCalls()[0]?.params).toMatchObject({
           message: expect.stringContaining("Follow-up result"),

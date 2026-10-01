@@ -60,7 +60,6 @@ import type { DeferredEmbeddedRunLifecycleManager } from "../embedded-agent-runn
 import type { RunEmbeddedAgentInternalParams } from "../embedded-agent-runner/run/internal-params.js";
 import { runEmbeddedAgent, type EmbeddedAgentRunResult } from "../embedded-agent.js";
 import { resolveAvailableAgentHarnessPolicy } from "../harness/selection.js";
-import { AGENT_LANE_SUBAGENT } from "../lanes.js";
 import {
   getGeneratedMediaTaskIdsForSessionKey,
   hasNewGeneratedMediaTaskForSessionKey,
@@ -83,6 +82,7 @@ import { emitAgentAttemptRuntimeStart } from "./attempt-callbacks.js";
 import {
   buildClaudeCliFallbackContextPrelude,
   claudeCliSessionTranscriptHasContent,
+  resolveCommandReplyExpectation,
   resolveFallbackRetryPrompt,
   rebaseExecApprovalContinuationPromptRange,
 } from "./attempt-execution.helpers.js";
@@ -172,7 +172,6 @@ export function runAgentAttempt(
           ? { id: sessionAuthProfileId, source: sessionAuthProfileSource }
           : undefined;
   const isRawModelRun = params.opts.modelRun === true || params.opts.promptMode === "none";
-  const isSubagentLane = params.opts.lane === AGENT_LANE_SUBAGENT;
   // A completion handoff relays frozen child output, so only a verified private
   // capability plus persisted requester lineage may restore its tool surface.
   const isSubagentAnnounceHandoff = isSubagentAnnounceCompletionHandoff({
@@ -430,6 +429,7 @@ export function runAgentAttempt(
     (agentHarnessPolicy.runtime === "openclaw" && agentHarnessPolicy.runtimeSource !== "implicit"
       ? "openclaw"
       : undefined);
+  const replyExpectation = resolveCommandReplyExpectation(params, isSubagentAnnounceHandoff);
   // Read session fields at invocation time, after admitted CLI binding recovery.
   const buildCommonRunParams = () =>
     ({
@@ -478,7 +478,8 @@ export function runAgentAttempt(
       onContextEngineTurnCandidate: params.onContextEngineTurnCandidate,
       suppressNextUserMessagePersistence: params.suppressPromptPersistenceOnRetry === true,
       disableTools,
-      allowEmptyAssistantReplyAsSilent: isSubagentLane || isSubagentAnnounceHandoff,
+      terminalReplyExpectation: replyExpectation,
+      silentReplyPromptMode: replyExpectation === "required" ? "none" : undefined,
       bootstrapPromptWarningSignaturesSeen,
       bootstrapPromptWarningSignature,
     }) satisfies Partial<RunEmbeddedAgentInternalParams>;
@@ -832,8 +833,6 @@ export function runAgentAttempt(
   const embeddedRunParams: RunEmbeddedAgentInternalParams = {
     ...buildCommonRunParams(),
     sandboxSessionKey: params.sessionKey,
-    // Subagent lifecycle owns the stricter explicit visible/silent/empty evidence check.
-    terminalReplyExpectation: isSubagentLane ? "optional" : undefined,
     ...toolContext,
     messageTo: params.opts.replyTo ?? params.opts.to,
     messageThreadId: params.opts.threadId,

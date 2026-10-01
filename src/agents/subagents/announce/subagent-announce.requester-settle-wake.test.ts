@@ -66,7 +66,7 @@ describe("maybeWakeRequesterAfterAllChildrenSettled", () => {
       "send it through an available, permitted messaging tool",
     );
     expect(String(deliveredCallArg().triggerMessage)).toContain(
-      "when no further work or user-facing update is owed, or after sending that update",
+      "briefly record the reviewed outcome and any remaining work",
     );
     expect(await maybeWakeRequesterAfterAllChildrenSettled(wakeParams())).toBe(false);
     expect(deliverSpy).toHaveBeenCalledOnce();
@@ -75,27 +75,32 @@ describe("maybeWakeRequesterAfterAllChildrenSettled", () => {
     );
   });
 
-  it("does not pass private findings to a replacement requester incarnation", async () => {
-    const child = makeSettledChild({
-      runId: "run-b",
-      completionTarget: "parent",
-      completionRequesterSessionId: "old-parent",
-      delivery: { status: "pending" },
-      completion: { required: true, resultText: "private marker" },
-    });
-    registryRuntimeMock.listSubagentRunsForRequester.mockReturnValue([child]);
-    expect(await maybeWakeRequesterAfterAllChildrenSettled(wakeParams())).toBe(false);
-    expect(deliverSpy).not.toHaveBeenCalled();
-    expect(completeBatchSpy).toHaveBeenCalledWith(
-      ["run-b"],
-      undefined,
-      expect.objectContaining({
-        delivered: false,
-        reason: "completion_handoff_unavailable",
-        disposition: "intentional_non_delivery",
-      }),
-    );
-  });
+  it.each(["session", "lifecycle"] as const)(
+    "does not pass private findings to a replacement requester %s",
+    async (replacement) => {
+      const child = makeSettledChild({
+        runId: "run-b",
+        completionTarget: "parent",
+        completionRequesterSessionId: replacement === "session" ? "old-parent" : "sess-main",
+        completionRequesterLifecycleRevision:
+          replacement === "lifecycle" ? "old-revision" : undefined,
+        delivery: { status: "pending" },
+        completion: { required: true, resultText: "private marker" },
+      });
+      registryRuntimeMock.listSubagentRunsForRequester.mockReturnValue([child]);
+      expect(await maybeWakeRequesterAfterAllChildrenSettled(wakeParams())).toBe(false);
+      expect(deliverSpy).not.toHaveBeenCalled();
+      expect(completeBatchSpy).toHaveBeenCalledWith(
+        ["run-b"],
+        undefined,
+        expect.objectContaining({
+          delivered: false,
+          reason: "completion_handoff_unavailable",
+          disposition: "intentional_non_delivery",
+        }),
+      );
+    },
+  );
 
   it("coalesces concurrent row restores without recharging the persisted attempt", async () => {
     const children = ["run-a", "run-b"].map((runId) =>

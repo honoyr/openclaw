@@ -413,9 +413,7 @@ export async function maybeWakeRequesterAfterAllChildrenSettled(
   // aggregate private; public siblings keep their individual completion route.
   const privateRows = completionRows.filter((entry) => entry.completionTarget === "parent");
   const parentOnly = privateRows.length > 0;
-  if (
-    privateRows.some((entry) => entry.completionRequesterSessionId !== requesterEntry.sessionId)
-  ) {
+  if (privateRows.some((entry) => !matchesSubagentRequesterSession(entry, requesterIdentity))) {
     await completeBatch(settledBatch, selectedState, {
       delivered: false,
       path: "none",
@@ -632,6 +630,7 @@ export async function maybeWakeRequesterAfterAllChildrenSettled(
                   ? {
                       completionTarget: "parent",
                       completionRequesterSessionId: requesterEntry.sessionId,
+                      completionRequesterLifecycleRevision: requesterEntry.lifecycleRevision,
                     }
                   : {}),
                 ...(!pauseNotice && !parentOnly && requesterYieldedAfterDelivery
