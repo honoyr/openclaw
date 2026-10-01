@@ -10,6 +10,7 @@ import { assertOpenClawStateLeaseWorkerOwnedInTransaction } from "../state/openc
 import type {
   WorkerOperationContext,
   WorkerOperationHandlers,
+  WorkerOperations,
 } from "../state/worker-operation-registry.js";
 import {
   readMcpOAuthStoreInDatabase,
@@ -161,3 +162,5 @@ export const mcpOAuthOperations = {
     );
   },
 } satisfies WorkerOperationHandlers;
+
+export type McpOAuthWorkerOperations = WorkerOperations<typeof mcpOAuthOperations>;

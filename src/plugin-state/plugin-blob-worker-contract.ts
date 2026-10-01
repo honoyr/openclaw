@@ -1,16 +1,12 @@
 import { isRecord } from "@openclaw/normalization-core/record-coerce";
-import type { WorkerOperations } from "../state/worker-operation-registry.js";
 import type {
   PluginBlobEntry,
   PluginBlobEntryInfo,
   PluginBlobStoreOperation,
 } from "./plugin-blob-store.types.js";
-import type { pluginBlobOperations } from "./plugin-blob-store.worker.js";
 
 type Namespace = { pluginId: string; namespace: string };
 type Key = Namespace & { key: string };
-
-export type PluginBlobWorkerOperations = WorkerOperations<typeof pluginBlobOperations>;
 
 export const pluginBlobWorkerOperations = {
   "pluginBlob.register": {

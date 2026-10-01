@@ -3,15 +3,12 @@ import {
   admitSubagentCompletionInWorker,
   mutateSubagentCompletionInWorker,
 } from "../agents/subagents/completion/subagent-completion-admission.worker.js";
-import type {
-  SubagentCompletionMutation,
-  SubagentCompletionMutationResult,
-} from "../agents/subagents/completion/subagent-completion-mutation.types.js";
-import type { SubagentRunSqliteRow } from "../agents/subagents/registry/subagent-registry.store.codec.js";
-import type { SubagentRunRecord } from "../agents/subagents/registry/subagent-registry.types.js";
 import type { OpenClawStateDatabase } from "../state/openclaw-state-db-contract.js";
 import { runOpenClawStateWriteTransaction } from "../state/openclaw-state-db.js";
-import type { WorkerOperationHandlers } from "../state/worker-operation-registry.js";
+import type {
+  WorkerOperationHandlers,
+  WorkerOperations,
+} from "../state/worker-operation-registry.js";
 import {
   type bindDeliveryQueueEntry,
   loadDeliveryQueueEntryInDatabase,
@@ -93,24 +90,13 @@ type PreparedMediaResult =
 
 export const sessionDeliveryOperations = {
   "sessionDelivery.mutateSubagentCompletion": (
-    input: { writeId: string; mutation: SubagentCompletionMutation },
+    input: Parameters<typeof mutateSubagentCompletionInWorker>[0],
     { open },
-  ): SubagentCompletionMutationResult & { writeId: string } =>
-    mutateSubagentCompletionInWorker(input, open()),
+  ) => mutateSubagentCompletionInWorker(input, open()),
   "sessionDelivery.admitSubagentCompletion": (
-    input: {
-      writeId: string;
-      queueEntry: QueuedSessionDelivery;
-      expected: SubagentRunRecord;
-      subagent: SubagentRunRecord;
-    },
+    input: Parameters<typeof admitSubagentCompletionInWorker>[0],
     { open },
-  ): {
-    writeId: string;
-    claimed: boolean;
-    status: DeliveryQueueStoredStatus;
-    row: SubagentRunSqliteRow;
-  } => admitSubagentCompletionInWorker(input, open()),
+  ) => admitSubagentCompletionInWorker(input, open()),
   "sessionDelivery.enqueue": (input: PreparedEntry, { open }) => {
     const database = open();
     return runOpenClawStateWriteTransaction(
@@ -285,3 +271,5 @@ export const sessionDeliveryOperations = {
     });
   },
 } satisfies WorkerOperationHandlers;
+
+export type SessionDeliveryWorkerOperations = WorkerOperations<typeof sessionDeliveryOperations>;

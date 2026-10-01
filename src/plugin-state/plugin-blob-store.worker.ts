@@ -3,6 +3,7 @@ import { runOpenClawStateWriteTransaction } from "../state/openclaw-state-db.js"
 import type {
   WorkerOperationContext,
   WorkerOperationHandlers,
+  WorkerOperations,
 } from "../state/worker-operation-registry.js";
 import {
   pluginBlobClearInDatabase,
@@ -72,3 +73,5 @@ export const pluginBlobOperations = {
   "pluginBlob.clear": (input: Input<typeof pluginBlobClearInDatabase>, context) =>
     write("pluginBlob.clear", context, (db) => pluginBlobClearInDatabase(db, input)),
 } satisfies WorkerOperationHandlers;
+
+export type PluginBlobWorkerOperations = WorkerOperations<typeof pluginBlobOperations>;

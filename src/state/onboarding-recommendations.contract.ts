@@ -1,7 +1,5 @@
 import { z } from "zod";
 import { sha256Hex } from "../infra/crypto-digest.js";
-import type { onboardingRecommendationOperations } from "./onboarding-recommendations.kernel.js";
-import type { WorkerOperations } from "./worker-operation-registry.js";
 
 const OnboardingRecommendationMatchSchema = z.object({
   appLabel: z.string(),
@@ -100,7 +98,3 @@ export function prepareOnboardingRecommendationPending(
   const matches = OnboardingRecommendationMatchesSchema.parse(params.matches);
   return { matches, expected: structuredClone(params.expected), nowMs };
 }
-
-export type OnboardingRecommendationWriteOperations = WorkerOperations<
-  typeof onboardingRecommendationOperations
->;

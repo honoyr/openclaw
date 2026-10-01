@@ -1,6 +1,3 @@
-import type { WorkerOperations } from "../state/worker-operation-registry.js";
-import type { legacyMcpOAuthOperations } from "./state-migrations.mcp-oauth.worker.js";
-
 /** Prepared under the original Doctor source claim before worker dispatch. */
 export type PreparedLegacyMcpOAuthImport = {
   sourceKey: string;
@@ -13,5 +10,3 @@ export type PreparedLegacyMcpOAuthImport = {
 };
 
 export type LegacyMcpOAuthImportResult = { sourceKey: string; imported: boolean };
-
-export type LegacyMcpOAuthWorkerOperations = WorkerOperations<typeof legacyMcpOAuthOperations>;

@@ -4,6 +4,7 @@ import {
   executeSqliteQueryTakeFirstSync,
   getNodeSqliteKysely,
 } from "../infra/kysely-sync.js";
+import type { SqliteWorkerCommand } from "../infra/sqlite-worker-contract.js";
 import {
   deferSqliteWorkerCommitReceipt,
   requestSqliteWorkerOperationAdmission,
@@ -12,6 +13,7 @@ import { runOpenClawStateWriteTransaction } from "../state/openclaw-state-db.js"
 import type {
   WorkerOperationContext,
   WorkerOperationHandlers,
+  WorkerOperations,
 } from "../state/worker-operation-registry.js";
 import type {
   ManagedImageRecord,
@@ -298,3 +300,18 @@ export const managedImageRecordOperations = {
   "managedImages.originalMediaIds": (_input: undefined, { open }) =>
     listManagedImageOriginalMediaIdsInDatabase(open().db),
 } satisfies WorkerOperationHandlers;
+
+export type ManagedImageRecordWorkerOperations = WorkerOperations<
+  typeof managedImageRecordOperations
+>;
+
+export type ManagedImageRecordMutation = Extract<
+  SqliteWorkerCommand<ManagedImageRecordWorkerOperations>,
+  {
+    type:
+      | "managedImages.insert"
+      | "managedImages.attach"
+      | "managedImages.claimCleanup"
+      | "managedImages.deleteClaimed";
+  }
+>;

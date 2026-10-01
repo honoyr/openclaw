@@ -1,8 +1,5 @@
 import type { Insertable, Selectable } from "kysely";
-import type { SqliteWorkerCommand } from "../infra/sqlite-worker-contract.js";
 import type { DB as OpenClawStateKyselyDatabase } from "../state/openclaw-state-db.generated.js";
-import type { WorkerOperations } from "../state/worker-operation-registry.js";
-import type { managedImageRecordOperations } from "./managed-image-record-store.kernel.js";
 
 type ManagedImageRecordVariant = {
   mediaRoot: string;
@@ -51,18 +48,3 @@ export type ManagedImageRecordAttachment = {
   messageId: string;
   updatedAt: string;
 };
-
-export type ManagedImageRecordWorkerOperations = WorkerOperations<
-  typeof managedImageRecordOperations
->;
-
-export type ManagedImageRecordMutation = Extract<
-  SqliteWorkerCommand<ManagedImageRecordWorkerOperations>,
-  {
-    type:
-      | "managedImages.insert"
-      | "managedImages.attach"
-      | "managedImages.claimCleanup"
-      | "managedImages.deleteClaimed";
-  }
->;

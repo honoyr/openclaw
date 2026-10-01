@@ -7,6 +7,7 @@ import { isOpenClawStateWriteContentionError } from "../state/openclaw-state-own
 import type {
   WorkerOperationContext,
   WorkerOperationHandlers,
+  WorkerOperations,
 } from "../state/worker-operation-registry.js";
 import { listAuditEventsInDatabase } from "./audit-event-read.kernel.js";
 import {
@@ -100,3 +101,9 @@ export const auditOperations = {
       (error) => formatAuditWriterRequestError(request, error),
     ),
 } satisfies WorkerOperationHandlers;
+
+export type AuditWorkerOperations = WorkerOperations<typeof auditOperations>;
+export type AuditWriterOperations = Pick<
+  AuditWorkerOperations,
+  "audit.writer.process" | "audit.writer.prune"
+>;

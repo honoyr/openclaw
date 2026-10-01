@@ -1,24 +1,24 @@
 import type { NativeHookRelayStoreWorkerOperations } from "../agents/harness/native-hook-relay-store.worker-contract.js";
-import type { McpOAuthWorkerOperations } from "../agents/mcp-oauth-store.types.js";
+import type { McpOAuthWorkerOperations } from "../agents/mcp-oauth-store.worker.js";
 import type { WorktreeWorkerOperations } from "../agents/worktrees/dispatch.worker.js";
-import type { AuditWorkerOperations } from "../audit/audit-event-writer.types.js";
+import type { AuditWorkerOperations } from "../audit/audit-event-writer.worker.js";
 import type { ChannelIngressWorkerOperations } from "../channels/message/ingress-queue.worker-contract.js";
 import type { DoctorWorkerOperations } from "../commands/doctor-state.worker.js";
 import type { FleetRegistryWriteOperations } from "../fleet/registry.worker-contract.js";
-import type { ManagedImageRecordWorkerOperations } from "../gateway/managed-image-record-store.types.js";
+import type { ManagedImageRecordWorkerOperations } from "../gateway/managed-image-record-store.kernel.js";
 import type { DeliveryQueueWorkerOperations } from "../infra/delivery-queue.worker-contract.js";
 import type { DevicePairingWorkerOperations } from "../infra/device-pairing-worker-contract.js";
-import type { CurrentConversationBindingWorkerOperations } from "../infra/outbound/current-conversation-bindings.worker-contract.js";
+import type { CurrentConversationBindingWorkerOperations } from "../infra/outbound/current-conversation-bindings.worker.js";
 import type { PromotionWorkerOperations } from "../infra/promotions-feed.worker.js";
 import type { ApnsRegistrationWorkerOperations } from "../infra/push-apns-store.worker-contract.js";
 import type { WebPushWorkerOperations } from "../infra/push-web-store.worker-contract.js";
-import type { SessionDeliveryWorkerOperations } from "../infra/session-delivery-queue.worker-contract.js";
-import type { LegacyMcpOAuthWorkerOperations } from "../infra/state-migrations.mcp-oauth.worker-contract.js";
-import type { TelemetryWorkerOperations } from "../infra/telemetry-worker-contract.js";
+import type { SessionDeliveryWorkerOperations } from "../infra/session-delivery-queue.worker.js";
+import type { LegacyMcpOAuthWorkerOperations } from "../infra/state-migrations.mcp-oauth.worker.js";
+import type { TelemetryWorkerOperations } from "../infra/telemetry-store.worker.js";
 import type { ModelCatalogWorkerOperations } from "../model-catalog/remote-store.worker.js";
 import type { NodeWorkerJournalWorkerOperations } from "../node-host/node-worker-journal.worker-contract.js";
-import type { PluginBlobWorkerOperations } from "../plugin-state/plugin-blob-worker-contract.js";
-import type { OnboardingRecommendationWriteOperations } from "./onboarding-recommendations.contract.js";
+import type { PluginBlobWorkerOperations } from "../plugin-state/plugin-blob-store.worker.js";
+import type { OnboardingRecommendationWriteOperations } from "./onboarding-recommendations.kernel.js";
 import { createWorkerOperationRegistry } from "./worker-operation-registry.js";
 
 export type RegisteredStateWorkerOperations = WebPushWorkerOperations &

@@ -1,7 +1,5 @@
 import { MAX_NODE_BOOTSTRAP_TIMEOUT_MS } from "../gateway/worker-environments/bootstrap-timeouts.js";
 import type { DeviceBootstrapProfile } from "../shared/device-bootstrap-profile.js";
-import type { WorkerOperations } from "../state/worker-operation-registry.js";
-import type { deviceBootstrapOperations } from "./device-bootstrap.worker-kernel.js";
 import type { DeviceBootstrapTokenRecord, PairedDevice } from "./device-pairing.types.js";
 
 export const DEVICE_BOOTSTRAP_TOKEN_TTL_MS = 10 * 60 * 1000;
@@ -40,5 +38,3 @@ export type DeviceBootstrapMutationAdmission =
   | { kind: "bootstrap.consume"; pairedDevice: PairedDevice | null; expiresAtMs: number }
   | { kind: "bootstrap.token"; expiresAtMs: number }
   | ({ kind: "bootstrap.cloudWorkerSetup" } & CloudWorkerSetupMutationAdmission);
-
-export type DeviceBootstrapOperations = WorkerOperations<typeof deviceBootstrapOperations>;

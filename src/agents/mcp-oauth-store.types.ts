@@ -3,8 +3,6 @@ import type {
   OAuthClientInformationMixed,
   OAuthTokens,
 } from "@modelcontextprotocol/sdk/shared/auth.js";
-import type { WorkerOperations } from "../state/worker-operation-registry.js";
-import type { mcpOAuthOperations } from "./mcp-oauth-store.worker.js";
 
 type McpOAuthAuthorizationChallenge = {
   resourceMetadataUrl?: string;
@@ -50,5 +48,3 @@ export type McpOAuthMutation =
       rejectedAccessToken?: string;
     }
   | { kind: "completeAuthorization" };
-
-export type McpOAuthWorkerOperations = WorkerOperations<typeof mcpOAuthOperations>;

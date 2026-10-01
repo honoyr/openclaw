@@ -16,6 +16,7 @@ import type { OpenClawStateDatabaseOptions } from "./openclaw-state-db.js";
 import type {
   WorkerOperationContext,
   WorkerOperationHandlers,
+  WorkerOperations,
 } from "./worker-operation-registry.js";
 
 export function readOnboardingRecommendationsInDatabase(
@@ -176,3 +177,7 @@ export const onboardingRecommendationOperations = {
     { open, stateOptions },
   ) => deleteConfigMachineState(configKey, { database: open(), ...stateOptions() }),
 } satisfies WorkerOperationHandlers;
+
+export type OnboardingRecommendationWriteOperations = WorkerOperations<
+  typeof onboardingRecommendationOperations
+>;

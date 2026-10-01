@@ -1,6 +1,9 @@
 import { withExistingOpenClawStateDatabaseReadOnly } from "../state/openclaw-state-db-readonly.js";
 import { runOpenClawStateWriteTransaction } from "../state/openclaw-state-db.js";
-import type { WorkerOperationHandlers } from "../state/worker-operation-registry.js";
+import type {
+  WorkerOperationHandlers,
+  WorkerOperations,
+} from "../state/worker-operation-registry.js";
 import {
   countRecentTelemetrySessionsInDatabase,
   persistTelemetrySuccessInDatabase,
@@ -26,3 +29,5 @@ export const telemetryOperations = {
       { operationLabel: "config-machine-state.update" },
     ),
 } satisfies WorkerOperationHandlers;
+
+export type TelemetryWorkerOperations = WorkerOperations<typeof telemetryOperations>;

@@ -10,7 +10,10 @@ import {
 } from "../shared/device-bootstrap-profile.js";
 import { roleScopesAllow } from "../shared/operator-scope-compat.js";
 import type { OpenClawStateDatabase } from "../state/openclaw-state-db.js";
-import type { WorkerOperationHandlers } from "../state/worker-operation-registry.js";
+import type {
+  WorkerOperationHandlers,
+  WorkerOperations,
+} from "../state/worker-operation-registry.js";
 import {
   DEVICE_BOOTSTRAP_TOKEN_TTL_MS,
   resolveDeviceBootstrapTokenExpiresAtMs,
@@ -515,3 +518,5 @@ export const deviceBootstrapOperations = {
   "bootstrap.redeem": devicePairingMutation(redeemDeviceBootstrapTokenProfile),
   "bootstrap.verify": devicePairingMutation(verifyDeviceBootstrapToken),
 } satisfies WorkerOperationHandlers;
+
+export type DeviceBootstrapOperations = WorkerOperations<typeof deviceBootstrapOperations>;

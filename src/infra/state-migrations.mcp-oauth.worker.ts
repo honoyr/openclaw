@@ -5,6 +5,7 @@ import { runOpenClawStateWriteTransaction } from "../state/openclaw-state-db.js"
 import type {
   WorkerOperationContext,
   WorkerOperationHandlers,
+  WorkerOperations,
 } from "../state/worker-operation-registry.js";
 import {
   executeSqliteQuerySync,
@@ -149,3 +150,5 @@ export const legacyMcpOAuthOperations = {
     markLegacyMigrationSourceRemovedInDatabase(db, input.sourceKey);
   }),
 } satisfies WorkerOperationHandlers;
+
+export type LegacyMcpOAuthWorkerOperations = WorkerOperations<typeof legacyMcpOAuthOperations>;

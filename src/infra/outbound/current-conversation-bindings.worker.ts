@@ -1,7 +1,10 @@
 import type { DatabaseSync } from "node:sqlite";
 import { withExistingOpenClawStateDatabaseReadOnly } from "../../state/openclaw-state-db-readonly.js";
 import { runOpenClawStateWriteTransaction } from "../../state/openclaw-state-db.js";
-import type { WorkerOperationHandlers } from "../../state/worker-operation-registry.js";
+import type {
+  WorkerOperationHandlers,
+  WorkerOperations,
+} from "../../state/worker-operation-registry.js";
 import { requestSqliteWorkerOperationAdmission } from "../sqlite-worker-operation-admission.js";
 import {
   readCurrentConversationBindingListInDatabase,
@@ -123,3 +126,7 @@ export const conversationBindingOperations = {
       { database: open(), ...stateOptions() },
     ),
 } satisfies WorkerOperationHandlers;
+
+export type CurrentConversationBindingWorkerOperations = WorkerOperations<
+  typeof conversationBindingOperations
+>;
