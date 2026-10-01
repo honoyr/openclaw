@@ -53,7 +53,6 @@ export const modelsHandlers: GatewayRequestHandlers = {
       if (scoped && !scope) {
         return;
       }
-      scope?.assertCurrent?.();
       const cfg = context.getRuntimeConfig();
       const resolved =
         scope ??
