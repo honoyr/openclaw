@@ -1,13 +1,13 @@
 import { throwSqliteLifecycleErrors } from "../infra/sqlite-lifecycle-errors.js";
 import type { SqliteWorkerStore } from "../infra/sqlite-worker-store.js";
-import type { OpenClawStateWorkerLeaseContext } from "./openclaw-state-lease-context.js";
+import type {
+  OpenClawStateWorkerLeaseContext,
+  OpenClawStateLeaseAcquisition,
+  OpenClawStateLeaseIdentity,
+} from "./openclaw-state-lease-context.js";
 import { OpenClawStateLeaseError } from "./openclaw-state-lease-error.js";
 import { leaseHeartbeatState } from "./openclaw-state-lease-heartbeat-shared.js";
 import { startOpenClawStateLeaseTimer } from "./openclaw-state-lease-heartbeat.js";
-import type {
-  OpenClawStateLeaseAcquisition,
-  OpenClawStateLeaseIdentity,
-} from "./openclaw-state-lease-store.js";
 import {
   withOpenClawStateLeaseWorkerAdmission,
   withOpenClawStateLeasesWorkerAdmission,

@@ -10,7 +10,7 @@ import type { WorkerSessionTurnClaim, WorkerTurnClaimInput } from "./placement-r
 import { find, getRequired } from "./placement-row-codec.js";
 import type { PlacementStoreRuntime } from "./placement-runtime.js";
 import { createPlacementTurnClaimOps } from "./placement-turn-claims.js";
-import type { PlacementTurnClaimReceipt } from "./placement-turn-claims.worker-contract.js";
+import type { PlacementTurnClaimReceipt } from "./placement-turn-claims.types.js";
 import {
   createPlacementWorkspaceResultOps,
   recordStagedWorkerWorkspaceResult,

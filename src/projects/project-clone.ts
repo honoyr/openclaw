@@ -28,9 +28,8 @@ import {
   listProjectRegistry,
   removeProjectCheckoutReference,
   resolveProjectCloneRefreshOwner,
-  type ProjectRegistryRecord,
 } from "./project-registry.js";
-import type { ProjectRegistryIdentity } from "./project-registry.kernel.js";
+import type { ProjectRegistryIdentity, ProjectRegistryRecord } from "./project-registry.types.js";
 
 const PROJECT_CLONE_LEASE_MS = 30_000;
 const PROJECT_CLONE_WAIT_MS = 30_000;

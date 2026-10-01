@@ -1,6 +1,4 @@
 import { sessionChanges } from "../../sessions/session-row-changes.js";
-import type { WorkerOperations } from "../../state/worker-operation-registry.js";
-import type { workerPlacementOperations } from "./placement-dispatch-store.worker.js";
 import type { WorkerSessionPlacementState } from "./placement-state.js";
 import type { WorkerWorkspaceResultConflict } from "./workspace-conflicts.js";
 
@@ -35,10 +33,6 @@ export type WorkerSessionPlacementDispatchIdentity = WorkerSessionPlacementIdent
     "state" | "generation" | "environmentId" | "activeOwnerEpoch"
   >;
 };
-
-export type WorkerPlacementDispatchStoreOperations = WorkerOperations<
-  typeof workerPlacementOperations
->;
 
 export type WorkerSessionTurnOwner =
   | { kind: "local"; environmentId?: string; ownerEpoch?: number }

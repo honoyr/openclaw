@@ -12,7 +12,7 @@ import type {
   WorkerWorkspaceJournalOwner,
   WorkspaceJournalMutation,
   WorkspaceJournalReceipt,
-} from "./placement-workspace-journal.worker-contract.js";
+} from "./placement-workspace-journal.types.js";
 import type { WorkerWorkspaceReconciliationJournal } from "./workspace-manifest.js";
 
 function operation<Input>(

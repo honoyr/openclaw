@@ -4,15 +4,15 @@ import type {
   WorkerOperationContext,
   WorkerOperationHandlers,
 } from "../../state/worker-operation-registry.js";
-import {
-  createWorkerInferenceStoreKernel,
-  type WorkerInferenceRetentionPolicy,
-} from "./inference-store.kernel.js";
+import { createWorkerInferenceStoreKernel } from "./inference-store.kernel.js";
+import type { WorkerInferenceRetentionPolicy } from "./inference-store.types.js";
 
 type Kernel = ReturnType<typeof createWorkerInferenceStoreKernel>;
-type KernelInput<Method extends keyof Kernel> = Parameters<Kernel[Method]>[0];
 
-function operation<Input, Output>(type: string, execute: (store: Kernel, input: Input) => Output) {
+function operation<Input, Output>(
+  type: string,
+  select: (store: Kernel) => (input: Input) => Output,
+) {
   return (
     input: { input: Input; nowMs: number; retention: Partial<WorkerInferenceRetentionPolicy> },
     { open }: WorkerOperationContext,
@@ -25,7 +25,7 @@ function operation<Input, Output>(type: string, execute: (store: Kernel, input: 
           now: () => input.nowMs,
           retention: input.retention,
         });
-        const result = execute(store, input.input);
+        const result = select(store)(input.input);
         requestSqliteWorkerOperationAdmission({ stage: "commit", facts: undefined });
         return result;
       },
@@ -35,20 +35,14 @@ function operation<Input, Output>(type: string, execute: (store: Kernel, input: 
 }
 
 export const workerInferenceOperations = {
-  "workerInference.begin": operation(
-    "workerInference.begin",
-    (store, input: KernelInput<"begin">) => store.begin(input),
-  ),
-  "workerInference.complete": operation(
-    "workerInference.complete",
-    (store, input: KernelInput<"complete">) => store.complete(input),
-  ),
+  "workerInference.begin": operation("workerInference.begin", (store) => store.begin),
+  "workerInference.complete": operation("workerInference.complete", (store) => store.complete),
   "workerInference.cancelPending": operation(
     "workerInference.cancelPending",
-    (store, input: KernelInput<"cancelPending">) => store.cancelPending(input),
+    (store) => store.cancelPending,
   ),
   "workerInference.recoverPending": operation(
     "workerInference.recoverPending",
-    (store, input: KernelInput<"recoverPending">) => store.recoverPending(input),
+    (store) => store.recoverPending,
   ),
 } satisfies WorkerOperationHandlers;

@@ -4,8 +4,10 @@ import type { SqliteWorkerAdmissionFactory } from "../infra/sqlite-worker-operat
 import type { SqliteWorkerOperationSettlement } from "../infra/sqlite-worker-operation-settlement.js";
 import { createDeferredCore } from "../shared/deferred.js";
 import { createOpenClawDatabaseMaintenanceScope } from "./openclaw-state-db-async-lifecycle.js";
-import type { OpenClawStateAsyncLeaseContext } from "./openclaw-state-lease-context.js";
-import type { OpenClawStateLeaseIdentity } from "./openclaw-state-lease-store.js";
+import type {
+  OpenClawStateAsyncLeaseContext,
+  OpenClawStateLeaseIdentity,
+} from "./openclaw-state-lease-context.js";
 import {
   createOpenClawStateLeaseWorkerOwner,
   withOpenClawStateLeaseWorkerAdmission,

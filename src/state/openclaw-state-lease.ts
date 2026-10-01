@@ -8,7 +8,7 @@ import {
   getOpenClawDatabaseMaintenanceScope,
   type OpenClawDatabaseMaintenanceScope,
 } from "./openclaw-state-db-async-lifecycle.js";
-import { acquireOpenClawStateLease } from "./openclaw-state-lease-acquisition.js";
+import { acquireLease, acquireOpenClawStateLease } from "./openclaw-state-lease-acquisition.js";
 import { createOpenClawStateLeaseCleanup } from "./openclaw-state-lease-cleanup.js";
 import type {
   OpenClawStateLeaseContext,
@@ -35,7 +35,6 @@ import { registerProcessExitLeaseCleanup } from "./openclaw-state-lease-process-
 import {
   prepareLeaseDatabase,
   resolveLeaseDatabasePath,
-  acquireLease,
   renewOpenClawStateLease as renew,
   verifyOpenClawStateLeaseOwnership as verifyLeaseOwnership,
   releaseOpenClawStateLease as release,

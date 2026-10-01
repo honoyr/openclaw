@@ -31,8 +31,8 @@ import {
   runOpenClawStateWriteTransaction,
 } from "./openclaw-state-db.js";
 import { resolveOpenClawStateSqlitePath } from "./openclaw-state-db.paths.js";
+import * as leaseAcquisition from "./openclaw-state-lease-acquisition.js";
 import { OpenClawStateLeaseAcquisitionError } from "./openclaw-state-lease-error.js";
-import * as leaseStorage from "./openclaw-state-lease-storage.js";
 import * as leaseStore from "./openclaw-state-lease-store.js";
 import { withOpenClawStateLease, type OpenClawStateLeaseContext } from "./openclaw-state-lease.js";
 import * as workerContext from "./openclaw-state-worker-context.js";
@@ -330,8 +330,8 @@ it.each(["acquired", "held", "store-unavailable"] as const)(
       const writer = outcome === "store-unavailable" ? new DatabaseSync(database.path) : undefined;
       writer?.exec("BEGIN IMMEDIATE");
       const controller = new AbortController();
-      const acquire = leaseStorage.acquireLease;
-      vi.spyOn(leaseStorage, "acquireLease").mockImplementation(async (...args) => {
+      const acquire = leaseAcquisition.acquireLease;
+      vi.spyOn(leaseAcquisition, "acquireLease").mockImplementation(async (...args) => {
         try {
           const result = await acquire(...args);
           expect(result.kind).toBe(outcome);

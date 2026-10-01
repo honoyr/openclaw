@@ -1,5 +1,5 @@
 import type { SqliteWorkerCommand } from "../infra/sqlite-worker-contract.js";
-import type { OpenClawStateLeaseIdentity } from "../state/openclaw-state-lease-store.js";
+import type { OpenClawStateLeaseIdentity } from "../state/openclaw-state-lease-context.js";
 import type { TranscriptSessionDescriptor, TranscriptSourceLocator } from "./provider-types.js";
 import type {
   queryTranscriptReadEntries,

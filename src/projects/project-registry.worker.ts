@@ -16,10 +16,12 @@ import {
   resolveProjectCloneRefreshOwnerInDatabase,
   resolveProjectRegistryInDatabase,
   resolveRecordedProjectRootInDatabase,
-  type ProjectRegistryIdentity,
-  type ProjectRegistryInsert,
 } from "./project-registry.kernel.js";
-import type { ProjectCheckoutLeaseInput } from "./project-registry.worker-contract.js";
+import type {
+  ProjectCheckoutLeaseInput,
+  ProjectRegistryIdentity,
+  ProjectRegistryInsert,
+} from "./project-registry.types.js";
 
 function projectRegistryOptions({ open, stateOptions }: WorkerOperationContext) {
   const options = { database: open(), ...stateOptions() };

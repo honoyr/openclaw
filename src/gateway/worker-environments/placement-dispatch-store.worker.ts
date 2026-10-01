@@ -10,7 +10,6 @@ import {
 } from "../../state/openclaw-state-db.js";
 import type { WorkerOperationHandlers } from "../../state/worker-operation-registry.js";
 import { readWorkerPlacementMovesReadOnly } from "./placement-move-intent.js";
-import { matchesWorkerPlacementTarget } from "./placement-reclaim-contract.js";
 import {
   nextGeneration,
   normalizeIdentity,
@@ -19,9 +18,12 @@ import {
   type WorkerSessionPlacementRecord,
 } from "./placement-record.js";
 import { ensureLocal, getRequired, query } from "./placement-row-codec.js";
-import { assertSessionWorkspaceUnreserved } from "./placement-workspace-reservation.js";
+import {
+  isFailedWorkerPlacementEnvironmentGone,
+  matchesWorkerPlacementTarget,
+} from "./placement-target.js";
+import { assertSessionWorkspaceUnreserved } from "./placement-workspace-reservation.kernel.js";
 import { hasWorkerWorkspacePendingResult } from "./placement-workspace-result.js";
-import { isFailedWorkerPlacementEnvironmentGone } from "./session-placement-lifecycle.js";
 import { findWorkerEnvironment } from "./store-row-codec.js";
 
 function startWorkerPlacementDispatchInWorker(

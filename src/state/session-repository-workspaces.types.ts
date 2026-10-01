@@ -1,6 +1,3 @@
-import type { repositoryWorkspaceOperations } from "./session-repository-workspaces.worker.js";
-import type { WorkerOperations } from "./worker-operation-registry.js";
-
 export type SessionRepositoryWorkspaceRecord = {
   workspaceId: string;
   agentId: string;
@@ -41,7 +38,3 @@ export type RepositoryWorkspaceMutationResult = {
   owner: RepositoryWorkspaceOwner | undefined;
   changed: boolean;
 };
-
-export type RepositoryWorkspaceWorkerOperations = WorkerOperations<
-  typeof repositoryWorkspaceOperations
->;

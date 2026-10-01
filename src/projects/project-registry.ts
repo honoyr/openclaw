@@ -16,11 +16,9 @@ import { registerResolvedProject } from "./project-registration.js";
 import {
   ensureProjectRegistrySchema,
   removeProjectCheckoutReferenceInDatabase,
-  type ProjectRegistryIdentity,
-  type ProjectRegistryRecord,
 } from "./project-registry.kernel.js";
+import type { ProjectRegistryIdentity, ProjectRegistryRecord } from "./project-registry.types.js";
 
-export type { ProjectRegistryRecord } from "./project-registry.kernel.js";
 export {
   ProjectCheckoutError,
   resolveProjectCheckout,

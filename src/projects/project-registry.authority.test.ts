@@ -9,7 +9,7 @@ import { createDeferredCore } from "../shared/deferred.js";
 import { OpenClawStateLeaseError } from "../state/openclaw-state-lease-error.js";
 import type { OpenClawStateWorkerContext } from "../state/openclaw-state-worker-context.types.js";
 import { selectStoredProjectRegistry } from "./project-registry.js";
-import type { ProjectRegistryRecord } from "./project-registry.kernel.js";
+import type { ProjectRegistryRecord } from "./project-registry.types.js";
 
 const fixture = vi.hoisted(() => ({
   expiresAt: 40_000,
@@ -56,8 +56,11 @@ vi.mock("../state/openclaw-state-db-cache.js", () => ({
 vi.mock("../state/openclaw-state-db-async-lifecycle.js", () => ({
   getOpenClawDatabaseMaintenanceScope: () => undefined,
 }));
-vi.mock("../state/openclaw-state-lease-storage.js", () => ({
+vi.mock("../state/openclaw-state-lease-acquisition.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../state/openclaw-state-lease-acquisition.js")>()),
   acquireLease: async () => ({ kind: "acquired", expiresAt: fixture.expiresAt }),
+}));
+vi.mock("../state/openclaw-state-lease-storage.js", () => ({
   prepareLeaseDatabase: fixture.forbiddenNative,
   resolveLeaseDatabasePath: () => path.resolve("/synthetic-state/lease.sqlite"),
   verifyOpenClawStateLeaseOwnership: () => {

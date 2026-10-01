@@ -13,12 +13,12 @@ import type {
 import { createWorkerEnvironmentCommitAdmission } from "./store-commit-authority.js";
 import { reconcileAttachedSessionOwners } from "./store-mutations.js";
 import { readWorkerEnvironmentFacts } from "./store-row-codec.js";
+import { readTotalChanges } from "./store-write.js";
+import { createWorkerEnvironmentStoreKernel } from "./store.kernel.js";
 import type {
   WorkerEnvironmentMutationInput,
   WorkerEnvironmentMutationMethods,
-} from "./store-worker-contract.js";
-import { readTotalChanges } from "./store-write.js";
-import { createWorkerEnvironmentStoreKernel } from "./store.kernel.js";
+} from "./store.types.js";
 import { pruneObservedTerminalWorkerEnvironments } from "./terminal-environment-retention.js";
 
 const admitted = () => {};

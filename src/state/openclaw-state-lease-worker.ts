@@ -17,7 +17,10 @@ import {
   type OpenClawStateDatabase,
 } from "./openclaw-state-db-contract.js";
 import { runOpenClawStateWriteTransaction } from "./openclaw-state-db.js";
-import type { OpenClawStateLeaseLifecycleOperations } from "./openclaw-state-lease-context.js";
+import type {
+  OpenClawStateLeaseLifecycleOperations,
+  OpenClawStateLeaseIdentity,
+} from "./openclaw-state-lease-context.js";
 import {
   createOpenClawStateLeaseLostError,
   OpenClawStateLeaseError,
@@ -32,7 +35,6 @@ import {
   reclaimDeadOpenClawStateLeaseInTransaction,
   releaseOpenClawStateLeaseInTransaction,
   renewOpenClawStateLeaseInTransaction,
-  type OpenClawStateLeaseIdentity,
 } from "./openclaw-state-lease-store.js";
 
 function takeLeaseExpiryObservation(identity: OpenClawStateLeaseIdentity): BigInt64Array {

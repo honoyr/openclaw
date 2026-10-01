@@ -3,7 +3,7 @@ import type {
   OAuthClientInformationMixed,
   OAuthTokens,
 } from "@modelcontextprotocol/sdk/shared/auth.js";
-import type { OpenClawStateLeaseIdentity } from "../state/openclaw-state-lease-store.js";
+import type { OpenClawStateLeaseIdentity } from "../state/openclaw-state-lease-context.js";
 
 type McpOAuthAuthorizationChallenge = {
   resourceMetadataUrl?: string;

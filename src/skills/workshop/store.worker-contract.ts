@@ -1,4 +1,4 @@
-import type { OpenClawStateLeaseIdentity } from "../../state/openclaw-state-lease-store.js";
+import type { OpenClawStateLeaseIdentity } from "../../state/openclaw-state-lease-context.js";
 import type {
   RecordSkillExperienceReviewOutcomeInput,
   ReadSkillCollectionBackupDropsInput,

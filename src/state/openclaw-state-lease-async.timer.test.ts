@@ -54,13 +54,16 @@ vi.mock("./openclaw-state-db-cache.js", () => ({
 vi.mock("./openclaw-state-lease-process-exit.js", () => ({
   registerProcessExitLeaseCleanup: () => () => {},
 }));
+vi.mock("./openclaw-state-lease-acquisition.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./openclaw-state-lease-acquisition.js")>()),
+  acquireLease: mocks.forbidden,
+}));
 vi.mock("./openclaw-state-lease-storage.js", () => ({
   STATE_LEASE_WRITE_BACKOFF: { initialMs: 25, maxMs: 250, factor: 1.5, jitter: 0.25 },
   isOpenClawStateLeaseWriteContention: () => false,
   releaseOpenClawStateLeaseBestEffort: async (_params: unknown, execute?: () => Promise<void>) =>
     execute?.(),
   resolveLeaseDatabasePath: mocks.forbidden,
-  acquireLease: mocks.forbidden,
   renewOpenClawStateLease: mocks.forbidden,
   verifyOpenClawStateLeaseOwnership: mocks.forbidden,
   releaseOpenClawStateLease: mocks.forbidden,
