@@ -7,12 +7,9 @@ import {
   type DeferredPluginMigrationRecordInput,
 } from "../infra/deferred-plugin-migrations.js";
 import { runOpenClawStateWriteTransaction } from "../state/openclaw-state-db.js";
-import type { OpenClawStateLeaseIdentity } from "../state/openclaw-state-lease-store.js";
 import { assertOpenClawStateLeaseWorkerOwnedInTransaction } from "../state/openclaw-state-lease-worker.js";
-import type {
-  WorkerOperationHandlers,
-  WorkerOperations,
-} from "../state/worker-operation-registry.js";
+import type { OpenClawStateLeaseIdentity } from "../state/openclaw-state-lease.types.js";
+import type { WorkerOperationHandlers } from "../state/worker-operation-registry.js";
 import {
   readPluginBindingApprovalsInDatabase,
   upsertPluginBindingApprovalInDatabase,
@@ -105,5 +102,3 @@ export const pluginRuntimeOperations = {
   "plugins.deferredMigrations.completions.read": (_input: undefined, { stateOptions }) =>
     readDeferredPluginMigrationCompletions(stateOptions()),
 } satisfies WorkerOperationHandlers;
-
-export type PluginRuntimeWorkerOperations = WorkerOperations<typeof pluginRuntimeOperations>;

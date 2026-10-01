@@ -1,8 +1,5 @@
 import { requestSqliteWorkerOperationAdmission } from "../../infra/sqlite-worker-operation-admission.js";
-import type {
-  WorkerOperationHandlers,
-  WorkerOperations,
-} from "../../state/worker-operation-registry.js";
+import type { WorkerOperationHandlers } from "../../state/worker-operation-registry.js";
 import { commitSkillUploadInDatabase } from "./upload-store-commit.js";
 import {
   appendSkillUploadChunkInDatabase,
@@ -53,5 +50,3 @@ export const skillUploadOperations = {
     { open, stateOptions },
   ) => releaseSkillUploadInDatabase(input, { database: open(), ...stateOptions() }),
 } satisfies WorkerOperationHandlers;
-
-export type SkillUploadWorkerOperations = WorkerOperations<typeof skillUploadOperations>;

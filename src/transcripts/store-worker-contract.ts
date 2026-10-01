@@ -1,5 +1,4 @@
 import type { SqliteWorkerCommand } from "../infra/sqlite-worker-contract.js";
-import type { WorkerOperations } from "../state/worker-operation-registry.js";
 import type { TranscriptSessionDescriptor, TranscriptSourceLocator } from "./provider-types.js";
 import type {
   queryTranscriptReadEntries,
@@ -27,20 +26,8 @@ import type {
   readRecentStoppedTranscriptSession,
   readTranscriptSummaryInputRevision,
 } from "./store-sqlite.js";
-import type { transcriptWriteOperations } from "./store-worker-write.js";
 
 type SessionIdentity = Pick<TranscriptSessionDescriptor, "sessionId" | "startedAt">;
-
-/** Host-only capture scheduling; functions never cross the worker boundary. */
-export type TranscriptAppendScheduler = (
-  write: (assertCurrent: () => void) => Promise<void>,
-) => Promise<void>;
-
-export type TranscriptWriteOperations = WorkerOperations<typeof transcriptWriteOperations>;
-
-export type TranscriptExportWriteKey =
-  | "transcripts.markPendingExports"
-  | "transcripts.recordExportManifest";
 
 export type TranscriptReadRequests = {
   "transcripts.canonicalSessionRow": {

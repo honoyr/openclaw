@@ -4,10 +4,7 @@ import {
   withExistingOpenClawStateDatabaseReadOnly,
 } from "../../state/openclaw-state-db-readonly.js";
 import { readUserModelAuthProfile } from "../../state/user-model-accounts.js";
-import type {
-  WorkerOperationHandlers,
-  WorkerOperations,
-} from "../../state/worker-operation-registry.js";
+import type { WorkerOperationHandlers } from "../../state/worker-operation-registry.js";
 import { readAuthProfileRows, SHARED_AUTH_STORE_STATE_KEY } from "./sqlite-json.js";
 import { isMissingDatabasePath } from "./sqlite-read-pool.js";
 import type { AuthProfileRowRead } from "./types.js";
@@ -52,5 +49,3 @@ export const authProfileOperations = {
     return input.artifactPreserving ? withArtifactPreservingStateReads(read) : read();
   },
 } satisfies WorkerOperationHandlers;
-
-export type AuthProfileWorkerOperations = WorkerOperations<typeof authProfileOperations>;

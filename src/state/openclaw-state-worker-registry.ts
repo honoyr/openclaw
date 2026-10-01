@@ -1,14 +1,16 @@
-import type { AcpSessionWriteOperations } from "../acp/runtime/session-meta-write.types.js";
-import type { AuthProfileWorkerOperations } from "../agents/auth-profiles/store.worker.js";
+import type { AcpSessionWriteOperations } from "../acp/runtime/session-meta-write.worker-contract.js";
+import type { AuthProfileWorkerOperations } from "../agents/auth-profiles/store.worker-contract.js";
 import type { WorktreeWorkerOperations } from "../agents/worktrees/dispatch.worker.js";
 import type { FleetRegistryWriteOperations } from "../fleet/registry.worker-contract.js";
 import type { ApnsRegistrationWorkerOperations } from "../infra/push-apns-store.worker-contract.js";
 import type { WebPushWorkerOperations } from "../infra/push-web-store.worker-contract.js";
-import type { PluginRuntimeWorkerOperations } from "../plugins/state.worker.js";
-import type { SkillUploadWorkerOperations } from "../skills/lifecycle/upload-store.worker.js";
-import type { SkillWorkshopWorkerOperations } from "../skills/workshop/store.worker-contract.js";
-import type { SkillCuratorOperations } from "../skills/workshop/store.worker.js";
-import type { TranscriptWriteOperations } from "../transcripts/store-worker-contract.js";
+import type { PluginRuntimeWorkerOperations } from "../plugins/state.worker-contract.js";
+import type { SkillUploadWorkerOperations } from "../skills/lifecycle/upload-store.worker-contract.js";
+import type {
+  SkillWorkshopWorkerOperations,
+  SkillCuratorOperations,
+} from "../skills/workshop/store.worker-contract.js";
+import type { TranscriptWriteOperations } from "../transcripts/store-write.worker-contract.js";
 import { createWorkerOperationRegistry } from "./worker-operation-registry.js";
 
 export type RegisteredStateWorkerOperations = WebPushWorkerOperations &

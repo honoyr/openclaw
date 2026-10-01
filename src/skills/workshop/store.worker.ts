@@ -2,12 +2,11 @@ import type { DatabaseSync } from "node:sqlite";
 import { requestSqliteWorkerOperationAdmission } from "../../infra/sqlite-worker-operation-admission.js";
 import type { OpenClawStateDatabase } from "../../state/openclaw-state-db-contract.js";
 import { runOpenClawStateWriteTransaction } from "../../state/openclaw-state-db.js";
-import type { OpenClawStateLeaseIdentity } from "../../state/openclaw-state-lease-store.js";
 import { assertOpenClawStateLeasesWorkerOwnedInTransaction } from "../../state/openclaw-state-lease-worker.js";
+import type { OpenClawStateLeaseIdentity } from "../../state/openclaw-state-lease.types.js";
 import type {
   WorkerOperationContext,
   WorkerOperationHandlers,
-  WorkerOperations,
 } from "../../state/worker-operation-registry.js";
 import {
   listSkillCollectionReviewOutcomesInDatabase,
@@ -106,8 +105,6 @@ export const skillCuratorOperations = {
       ...stateOptions(),
     }),
 } satisfies WorkerOperationHandlers;
-
-export type SkillCuratorOperations = WorkerOperations<typeof skillCuratorOperations>;
 
 export const skillWorkshopOperations = {
   "workshop.events.list": (

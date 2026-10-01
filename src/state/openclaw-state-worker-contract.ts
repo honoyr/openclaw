@@ -74,7 +74,7 @@ import type { SecretStoreExpiryCutoffs } from "../secrets/store/secret-store-exp
 import type { SessionStateWorkerOperations } from "../sessions/session-state-events.worker-contract.js";
 import type { SessionUpstreamLink } from "../sessions/session-upstream-links.kernel.js";
 import type { DeviceAuthEntry } from "../shared/device-auth.js";
-import type { SkillUploadWorkerOperations } from "../skills/lifecycle/upload-store.worker.js";
+import type { SkillUploadWorkerOperations } from "../skills/lifecycle/upload-store.worker-contract.js";
 import type { SkillProposalEvent, SkillProposalRecord } from "../skills/workshop/types.js";
 import type { TranscriptReadOperations } from "../transcripts/store-worker-contract.js";
 import type { TuiLastSessionWorkerOperations } from "../tui/tui-last-session.contract.js";
