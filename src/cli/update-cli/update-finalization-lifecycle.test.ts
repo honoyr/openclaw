@@ -66,7 +66,7 @@ it.each([false, true])(
       result: { status: "error", mode: "unknown", steps: [], durationMs: 1 },
     });
     expect(report.body).toContain("Reason code: doctor-failed");
-    expect(report.body).toContain(`Failed phase finalize-doctor: ${message}`);
+    expect(report.body).toContain(`Failed phase finalize-doctor: exit 23 (${message})`);
     expect(report.body).not.toContain("Failed phase finalize-doctor: exit unknown");
   },
 );
