@@ -662,9 +662,9 @@ export async function runOxlint(
 
   const root = process.cwd();
   const run = async (ownedDirectory?: string) => {
-    if (!focusedConfig) {
+    if (!focusedConfig && !finalArgs.some((arg) => OXLINT_PREPARE_SKIP_FLAGS.has(arg))) {
       // Type-aware rules resolve Kysely schema projections, which are generated, not tracked.
-      await ensureKyselyTypes(root);
+      await ensureKyselyTypes(root, false, { allowPartialCheckout: true });
     }
     if (needsArtifactPreparation) {
       // Declaration compilation owns its Go policy; lint limits belong to the oxlint child.
