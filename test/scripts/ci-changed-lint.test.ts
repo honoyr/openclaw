@@ -190,7 +190,6 @@ describe("CI changed lint", () => {
     for (const file of [
       "run-oxlint.mjs",
       "run-oxlint.mts",
-      "generate-kysely-types.mts",
       "run-oxlint-shards.mts",
       "generate-kysely-types.mts",
       "tsx.mjs",
