@@ -4,13 +4,9 @@ import type { SessionEntry } from "../../config/sessions.js";
 import { replaceSessionEntry } from "../../config/sessions/session-accessor.js";
 import type { TemplateContext } from "../templating.js";
 import type { InternalGetReplyOptions } from "./get-reply.types.js";
-import {
-  clearSessionQueues,
-  enqueueFollowupRun,
-  parkSteerCandidate,
-  type FollowupRun,
-} from "./queue.js";
-import { getExistingFollowupQueue } from "./queue/state.js";
+import { enqueueFollowupRun, parkSteerCandidate, type FollowupRun } from "./queue.js";
+import { clearFollowupDrainCallback } from "./queue/drain.js";
+import { clearFollowupQueue, getExistingFollowupQueue } from "./queue/state.js";
 import {
   REPLY_OPERATION_RUN_STATE,
   type ReplyOperationRunState,
@@ -98,7 +94,8 @@ export function registerSteeringReceiptCases({
         expect(replyState.admission).toEqual({ status: "skipped", reason: "queue-cap" });
         expect(getExistingFollowupQueue("main")?.items).toEqual([retained]);
       } finally {
-        clearSessionQueues(["main"]);
+        clearFollowupQueue("main");
+        clearFollowupDrainCallback("main");
         active.complete();
       }
     },
@@ -187,7 +184,8 @@ export function registerSteeringReceiptCases({
     } finally {
       firstAcceptance.resolve(true);
       await Promise.allSettled([firstRun, ...(secondRun ? [secondRun] : [])]);
-      clearSessionQueues(["main"]);
+      clearFollowupQueue("main");
+      clearFollowupDrainCallback("main");
       active.complete();
     }
   });
