@@ -360,16 +360,6 @@ public struct OpenClawChatSessionMutationRouteLease: Sendable {
         _ archived: Bool?,
         _ unread: Bool?) async throws -> Void
     public typealias DeleteSession = @Sendable (_ key: String) async throws -> Void
-    public typealias PatchTarget = @Sendable (
-        _ target: OpenClawChatSessionTarget,
-        _ expectedSessionID: String?,
-        _ expectedMarkedUnreadAt: Double??,
-        _ label: String??,
-        _ category: String??,
-        _ color: String??,
-        _ pinned: Bool?,
-        _ archived: Bool?,
-        _ unread: Bool?) async throws -> OpenClawChatSessionPatchReceipt?
     public typealias DeleteTarget = @Sendable (_ target: OpenClawChatSessionTarget) async throws -> Void
 
     private typealias SnoozePatchTarget = @Sendable (
@@ -409,15 +399,6 @@ public struct OpenClawChatSessionMutationRouteLease: Sendable {
         } else {
             self.deleteSessionImpl = nil
         }
-    }
-
-    public init(patchTarget: @escaping PatchTarget, deleteTarget: DeleteTarget?) {
-        self.patchSessionImpl = { target, id, unreadAt, label, category, color, pinned, archived, snooze, unread in
-            guard snooze == nil else { throw OpenClawChatTransportSendError.notDispatched }
-            return try await patchTarget(
-                target, id, unreadAt, label, category, color, pinned, archived, unread)
-        }
-        self.deleteSessionImpl = deleteTarget
     }
 
     private init(patchSnoozeTarget: @escaping SnoozePatchTarget, deleteTarget: DeleteTarget?) {
