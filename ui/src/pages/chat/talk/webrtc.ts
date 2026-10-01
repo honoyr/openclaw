@@ -189,10 +189,8 @@ export class WebRtcSdpRealtimeTalkTransport implements RealtimeTalkTransport {
     if (channelReady === "cancelled" || !this.isCurrentPeer(peer)) {
       return this.cancelledStart();
     }
-    if (channelReady === "opened") {
-      this.ctx.callbacks.onStatus?.("listening");
-      this.emitTalkEvent({ type: "session.ready" });
-    }
+    this.ctx.callbacks.onStatus?.("listening");
+    this.emitTalkEvent({ type: "session.ready" });
     this.starting = false;
     return "ready";
   }

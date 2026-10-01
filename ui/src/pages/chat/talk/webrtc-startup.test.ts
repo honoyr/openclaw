@@ -7,11 +7,16 @@ import { WebRtcSdpRealtimeTalkTransport } from "./webrtc.ts";
 let stopInputTrack: ReturnType<typeof vi.fn>;
 
 class FakeDataChannel extends EventTarget {
-  readyState: RTCDataChannelState = "connecting";
+  readyState: RTCDataChannelState;
   send = vi.fn();
   close = vi.fn(() => {
     this.readyState = "closed";
   });
+
+  constructor(readyState: RTCDataChannelState = "connecting") {
+    super();
+    this.readyState = readyState;
+  }
 
   open(): void {
     this.readyState = "open";
@@ -21,9 +26,10 @@ class FakeDataChannel extends EventTarget {
 
 class FakePeerConnection extends EventTarget {
   static instance: FakePeerConnection | undefined;
+  static initialChannelState: RTCDataChannelState = "connecting";
 
   connectionState: RTCPeerConnectionState = "new";
-  readonly channel = new FakeDataChannel();
+  readonly channel = new FakeDataChannel(FakePeerConnection.initialChannelState);
   readonly addTrack = vi.fn();
   remoteDescription: RTCSessionDescriptionInit | null = null;
 
@@ -79,6 +85,7 @@ async function createTransport(
 
 beforeEach(() => {
   FakePeerConnection.instance = undefined;
+  FakePeerConnection.initialChannelState = "connecting";
   stopInputTrack = vi.fn();
   const track = Object.assign(new EventTarget(), {
     stop: stopInputTrack,
@@ -119,6 +126,18 @@ describe("WebRTC Talk control-channel startup", () => {
     peer.channel.open();
 
     await expect(starting).resolves.toBe("ready");
+    expect(onStatus).toHaveBeenCalledWith("listening");
+    expect(onTalkEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "session.ready" }));
+    transport.stop();
+  });
+
+  it("reports ready when the control data channel is already open", async () => {
+    FakePeerConnection.initialChannelState = "open";
+    const onStatus = vi.fn();
+    const onTalkEvent = vi.fn();
+    const transport = await createTransport({ onStatus, onTalkEvent });
+
+    await expect(transport.start()).resolves.toBe("ready");
     expect(onStatus).toHaveBeenCalledWith("listening");
     expect(onTalkEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "session.ready" }));
     transport.stop();
