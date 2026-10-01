@@ -292,10 +292,11 @@ struct CommandSessionActionsModifier: ViewModifier {
         } else {
             Menu {
                 ForEach(OpenClawChatSessionSnooze.presets(now: now), id: \.id) { preset in
-                    self.actionButton(
-                        .verbatim("\(preset.title) · \(preset.wakeAt.formatted(date: .omitted, time: .shortened))"),
-                        systemImage: "clock")
-                    {
+                    // "Next week" needs its weekday; the other titles already name the day.
+                    let when = preset.id == "next-week"
+                        ? OpenClawChatSessionSnooze.wakeDescription(preset.wakeAt, now: now)
+                        : preset.wakeAt.formatted(date: .omitted, time: .shortened)
+                    self.actionButton(.verbatim("\(preset.title) · \(when)"), systemImage: "clock") {
                         self.actions.snooze(preset.wakeAt)
                     }
                 }
