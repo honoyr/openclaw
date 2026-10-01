@@ -205,8 +205,7 @@ describe("Blob-preserving metadata migration", () => {
       connected: false,
       client: new GatewayBrowserClient({ url: gatewayUrl, offlineRecoveryScope: "principal-a" }),
     };
-    const result = await prepareOutboxPayload(reloaded, original, "handoff");
-    expect(result).toMatchObject({ status: "ready", update: { attachments: [{ dataUrl }] } });
+    await expectBytes(reloaded, original);
     reloaded.client.retireOfflineRecoveryScope();
     expect(await prepareOutboxPayload(reloaded, original, "handoff")).toEqual({
       status: "failed",
