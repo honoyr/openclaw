@@ -6,7 +6,15 @@ import { runOpenClawStateWriteTransaction } from "./openclaw-state-db.js";
 import { executeUserChannelIdentityChange } from "./user-channel-identities.worker.js";
 import { selectStoredGitHubIdentities } from "./user-profile-github-identity.js";
 import { listUserProfilesSync } from "./user-profile-identity.read.js";
-import { userProfileWriteOperations } from "./user-profile-writes.worker.js";
+import {
+  executeUserProfileWrite,
+  linkEmail,
+  mergeProfiles,
+  setAvatar,
+  setDisplayName,
+  setUserProfileRole,
+  syncGitHubIdentity,
+} from "./user-profile-writes.worker.js";
 import {
   selectProfileDisplayEntries,
   inspectProfileAvatarInDatabase,
@@ -15,8 +23,118 @@ import {
   userProfilesDb,
 } from "./user-profiles-internal.js";
 import { ensureUserProfilesSchema } from "./user-profiles-schema.js";
+import {
+  ensureGatewayOwnerProfile,
+  ensureProfileForEmail,
+  ensureProfileForTailscaleIdentity,
+} from "./user-profiles.js";
 import type { ProfileDisplayRow, UserProfileAvatarMime } from "./user-profiles.types.js";
 import type { WorkerOperationHandlers, WorkerOperations } from "./worker-operation-registry.js";
+
+const userProfileWriteOperations = {
+  "userProfiles.setRole": (
+    input: { profileId: string; role: string | null },
+    { open, stateOptions },
+  ) =>
+    executeUserProfileWrite(
+      "userProfiles.setRole",
+      { ...stateOptions(), database: open() },
+      (owned) => setUserProfileRole(input.profileId, input.role, owned),
+    ),
+  "userProfiles.linkEmail": (
+    input: { email: string; targetProfileId: string },
+    { open, stateOptions },
+  ) =>
+    executeUserProfileWrite(
+      "userProfiles.linkEmail",
+      { ...stateOptions(), database: open() },
+      (owned, display) => ({
+        profile: linkEmail(input.email, input.targetProfileId, owned),
+        display: display(),
+      }),
+      input.targetProfileId,
+    ),
+  "userProfiles.merge": (
+    input: { sourceProfileId: string; targetProfileId: string },
+    { open, stateOptions },
+  ) =>
+    executeUserProfileWrite(
+      "userProfiles.merge",
+      { ...stateOptions(), database: open() },
+      (owned, display) => ({
+        ...mergeProfiles(input.sourceProfileId, input.targetProfileId, owned),
+        display: display(),
+      }),
+      input.targetProfileId,
+    ),
+  "userProfiles.ensureEmail": (
+    input: { email: string; expectedGitHubAccountId?: number },
+    { open, stateOptions },
+  ) =>
+    executeUserProfileWrite(
+      "userProfiles.ensureEmail",
+      { ...stateOptions(), database: open() },
+      (owned) =>
+        ensureProfileForEmail(input.email, {
+          ...owned,
+          expectedGitHubAccountId: input.expectedGitHubAccountId,
+        }),
+    ),
+  "userProfiles.ensureTailscale": (
+    input: Parameters<typeof ensureProfileForTailscaleIdentity>[0],
+    { open, stateOptions },
+  ) =>
+    executeUserProfileWrite(
+      "userProfiles.ensureTailscale",
+      { ...stateOptions(), database: open() },
+      (owned) => ensureProfileForTailscaleIdentity(input, owned),
+    ),
+  "userProfiles.syncGitHub": (
+    input: Parameters<typeof syncGitHubIdentity>[0],
+    { open, stateOptions },
+  ) =>
+    executeUserProfileWrite(
+      "userProfiles.syncGitHub",
+      { ...stateOptions(), database: open() },
+      (owned) => syncGitHubIdentity(input, owned),
+    ),
+  "userProfiles.ensureOwner": (input: { displayName: string | null }, { open, stateOptions }) =>
+    executeUserProfileWrite(
+      "userProfiles.ensureOwner",
+      { ...stateOptions(), database: open() },
+      (owned) => ensureGatewayOwnerProfile(input.displayName, owned),
+    ),
+  "userProfiles.setDisplayName": (
+    input: { profileId: string; name: string | null },
+    { open, stateOptions },
+  ) =>
+    executeUserProfileWrite(
+      "userProfiles.setDisplayName",
+      { ...stateOptions(), database: open() },
+      (owned, display) => ({
+        profile: setDisplayName(input.profileId, input.name, owned),
+        display: display(),
+      }),
+      input.profileId,
+    ),
+  "userProfiles.setAvatar": (
+    input: { profileId: string; bytes: Uint8Array; mime: string },
+    { open, stateOptions },
+  ) =>
+    executeUserProfileWrite(
+      "userProfiles.setAvatar",
+      { ...stateOptions(), database: open() },
+      (owned, display) => {
+        const result = setAvatar(input.profileId, input.bytes, input.mime, owned);
+        return result.ok
+          ? { ok: true as const, value: { profile: result.value, display: display() } }
+          : result;
+      },
+      input.profileId,
+    ),
+} satisfies WorkerOperationHandlers;
+
+export type UserProfileWriteOperations = WorkerOperations<typeof userProfileWriteOperations>;
 
 export const userProfileOperations = {
   ...userProfileWriteOperations,
