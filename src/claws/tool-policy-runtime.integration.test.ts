@@ -3,12 +3,20 @@ import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAutoCleanupTempDirTracker } from "../../test/helpers/temp-dir.js";
+import { createExecTool } from "../agents/bash-tools.exec-run.js";
 import { resolveConversationCapabilityProfile } from "../agents/conversation-capability-profile.js";
 import {
   buildConversationToolPolicyPipelineSteps,
   resolveConversationToolPolicies,
 } from "../agents/conversation-tool-policy-pipeline.js";
+import { createReadTool } from "../agents/sessions/tools/read.js";
 import { applyToolPolicyPipeline } from "../agents/tool-policy-pipeline.js";
+import {
+  createToolSearchCatalogRef,
+  registerHeadlessToolSearchCatalog,
+} from "../agents/tool-search-catalog.js";
+import { resolveToolSearchConfig } from "../agents/tool-search-config.js";
+import { ToolSearchRuntime } from "../agents/tool-search-runtime.js";
 import {
   clearRuntimeConfigSnapshot,
   setRuntimeConfigSnapshot,
@@ -77,26 +85,52 @@ async function migrateToolConsentAgent() {
 describe("Claw tool policy consent provenance", () => {
   it("runs an adopted agent with frozen tools and inherited settings after restart", async () => {
     const { config, env } = await migrateToolConsentAgent();
+    const workspace = config.agents.entries.worker.workspace;
+    const read = createReadTool(workspace);
+    const exec = createExecTool({ cwd: workspace, host: "gateway", security: "full", ask: "off" });
+    const executeRead = vi.spyOn(read, "execute");
+    const executeExec = vi.spyOn(exec, "execute");
+    const marker = join(workspace, "forbidden-exec-marker");
+    const execInput = { command: "touch forbidden-exec-marker" };
+    const prepareDispatcher = (activeConfig: OpenClawConfig) => {
+      const capabilityProfile = resolveConversationCapabilityProfile({
+        agentId: "worker",
+        config: activeConfig,
+      });
+      const policies = resolveConversationToolPolicies({ capabilityProfile });
+      const filtered = applyToolPolicyPipeline({
+        tools: [read, exec, { ...read, name: "future_tool" }],
+        toolMeta: (tool) => (tool.name === "future_tool" ? { pluginId: "read" } : undefined),
+        warn: () => {},
+        steps: buildConversationToolPolicyPipelineSteps({
+          capabilityProfile,
+          policies,
+          includeRuntimeToolPolicy: true,
+        }),
+      });
+      expect(filtered.map((tool) => tool.name)).toEqual(["read"]);
+      const catalogRef = createToolSearchCatalogRef();
+      registerHeadlessToolSearchCatalog({ catalogRef, tools: filtered });
+      return new ToolSearchRuntime({ catalogRef }, resolveToolSearchConfig(), {
+        validateInput: true,
+      });
+    };
     closeOpenClawStateDatabase();
     setRuntimeConfigSnapshot(config);
     const captured = structuredClone(config);
     prepareCapturedClawToolPolicyConsent(captured, { env });
-    const capabilityProfile = resolveConversationCapabilityProfile({
-      agentId: "worker",
-      config: captured,
-    });
-    const policies = resolveConversationToolPolicies({ capabilityProfile });
-    const filtered = applyToolPolicyPipeline({
-      tools: [{ name: "read" }, { name: "exec" }, { name: "future_tool" }],
-      toolMeta: (tool) => (tool.name === "future_tool" ? { pluginId: "read" } : undefined),
-      warn: () => {},
-      steps: buildConversationToolPolicyPipelineSteps({
-        capabilityProfile,
-        policies,
-        includeRuntimeToolPolicy: true,
+    const dispatcher = prepareDispatcher(captured);
+    const readResult = await dispatcher.call("read", { path: "AGENTS.md" });
+    expect(readResult.result.content).toContainEqual(
+      expect.objectContaining({
+        type: "text",
+        text: expect.stringContaining("Use the existing workspace."),
       }),
-    });
-    expect(filtered.map((tool) => tool.name)).toEqual(["read"]);
+    );
+    expect(executeRead).toHaveBeenCalledOnce();
+    await expect(dispatcher.call("exec", execInput)).rejects.toThrow("Unknown tool");
+    expect(executeExec).not.toHaveBeenCalled();
+    expect(existsSync(marker)).toBe(false);
 
     const changedConfigs: OpenClawConfig[] = [
       {
@@ -131,16 +165,19 @@ describe("Claw tool policy consent provenance", () => {
     ];
     for (const changed of changedConfigs) {
       setRuntimeConfigSnapshot(changed);
-      expect(() =>
-        resolveConversationCapabilityProfile({ agentId: "worker", config: changed }),
-      ).toThrow("Cannot verify the installed tool authority");
+      await expect(
+        (async () => prepareDispatcher(changed).call("exec", execInput))(),
+      ).rejects.toThrow("Cannot verify the installed tool authority");
     }
     setRuntimeConfigSnapshot(config);
     openOpenClawStateDatabase({ env });
     closeOpenClawStateDatabase();
-    expect(() => resolveConversationCapabilityProfile({ agentId: "worker", config })).toThrow(
+    await expect((async () => prepareDispatcher(config).call("exec", execInput))()).rejects.toThrow(
       "Cannot verify the installed tool authority",
     );
+    expect(executeRead).toHaveBeenCalledOnce();
+    expect(executeExec).not.toHaveBeenCalled();
+    expect(existsSync(marker)).toBe(false);
   });
 
   it("keeps mixed legacy, created, and adopted consent isolated after restart", async () => {
