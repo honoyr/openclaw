@@ -284,7 +284,7 @@ struct CommandSessionActionsModifier: ViewModifier {
                 Date(timeIntervalSince1970: snoozedUntil / 1000),
                 now: now)
             self.actionButton(
-                .verbatim(String(localized: "Wake session · \(wakeDescription)")),
+                .verbatim(String(format: String(localized: "Wake session · %@"), wakeDescription)),
                 systemImage: "clock")
             {
                 self.actions.wake()

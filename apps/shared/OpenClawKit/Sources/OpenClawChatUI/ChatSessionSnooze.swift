@@ -62,7 +62,7 @@ public enum OpenClawChatSessionSnooze: Sendable {
         if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now),
            calendar.isDate(wakeAt, inSameDayAs: tomorrow)
         {
-            return String(localized: "tomorrow \(time)")
+            return String(format: String(localized: "tomorrow %@"), time)
         }
         if let nextWeek = calendar.date(byAdding: .day, value: 7, to: now), wakeAt > now, wakeAt <= nextWeek {
             style = style.weekday(.abbreviated)
