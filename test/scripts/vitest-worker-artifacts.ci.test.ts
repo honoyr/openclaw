@@ -5,7 +5,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { expect } from "vitest";
 import { isConstrainedCiCheckHost } from "../../scripts/lib/local-check-runtime.mts";
 import { isProcessAlive, waitForDead, waitForFixtureFile } from "../helpers/process-wait.js";
-import { fixturePreloadEnv } from "./fixtures/ci-fixture-runtime.cjs";
 import {
   createControlledWorkerCompiler,
   createWorkerArtifactTest,
@@ -19,7 +18,7 @@ type Observation = {
   generation: string;
   pid: number;
   parent: number;
-  groupOwner: number;
+  planner: number;
   group: string;
   inputDigest: string;
   includeFile: string;
@@ -36,12 +35,16 @@ function createCiProbe(
   const ready = path.join(directory, "ready");
   const startFirst = path.join(directory, "start-first");
   const firstReady = path.join(directory, "first-ready");
-  const ownerPreload = writeFixture(
+  // Identify the group planner before either thread or fork leaves inherit its environment.
+  const plannerPreload = writeFixture(
     directory,
-    "group-owner.mjs",
-    `if (process.argv.includes('scripts/test-projects.mts') ||
-        process.argv.includes(${JSON.stringify(path.join(root, "scripts/test-projects.mts"))})) {
-      process.env.OPENCLAW_TEST_CI_GROUP_OWNER_PID = String(process.pid);
+    "planner-preload.mjs",
+    `
+    import path from 'node:path';
+    import { isMainThread } from 'node:worker_threads';
+    const planner = ${JSON.stringify(path.join(root, "scripts/test-projects.mts"))};
+    if (isMainThread && [process.argv[1], process.argv[3]].some(arg => arg && path.resolve(arg) === planner)) {
+      process.env.OPENCLAW_FIXTURE_PLANNER_PID = String(process.pid);
     }`,
   );
   const probe = writeFixture(
@@ -71,14 +74,12 @@ function createCiProbe(
       expect(prepared).toBe(true);
       const manifest = JSON.parse(fs.readFileSync(new URL('../../manifest.json', generation), 'utf8'));
       const group = process.env.OPENCLAW_VITEST_SHARD_NAME;
-      const groupOwner = Number(process.env.OPENCLAW_TEST_CI_GROUP_OWNER_PID);
-      expect(Number.isSafeInteger(groupOwner) && groupOwner > 0).toBe(true);
       if (${retain} && group === 'first-group') {
         await waitForSignal(${JSON.stringify(startFirst)});
       }
       fs.appendFileSync(${JSON.stringify(observationsFile)}, JSON.stringify({
-        generation: generation.href, pid: process.pid, parent: process.ppid,
-        groupOwner, group,
+        generation: generation.href, pid: process.pid, parent: process.ppid, group,
+        planner: Number(process.env.OPENCLAW_FIXTURE_PLANNER_PID),
         includeFile: process.env.OPENCLAW_VITEST_INCLUDE_FILE,
         inputDigest: createHash('sha256').update(JSON.stringify(manifest.inputs)).digest('hex'),
       })+'\\n');
@@ -111,7 +112,7 @@ function createCiProbe(
   );
   return {
     probe,
-    ownerPreload,
+    plannerPreload,
     observationsFile,
     release,
     ready,
@@ -126,20 +127,9 @@ function createCiProbe(
   };
 }
 
-function ciEnv(
-  fixture: Pick<ReturnType<typeof createCiProbe>, "probe" | "ownerPreload">,
-  parallelism: number,
-  repeatSpec = false,
-): NodeJS.ProcessEnv {
+function ciEnv(probe: string, parallelism: number, repeatSpec = false): NodeJS.ProcessEnv {
   return {
     ...process.env,
-    ...Object.fromEntries(
-      Object.entries(fixturePreloadEnv(fixture.ownerPreload, "node")).map(([key, value]) => [
-        key,
-        `${process.env[key] ?? ""} ${value}`.trim(),
-      ]),
-    ),
-    OPENCLAW_TEST_CI_GROUP_OWNER_PID: "",
     // Nested groups own their cache slots; a parent cache leaf forces serial admission.
     OPENCLAW_VITEST_FS_MODULE_CACHE_ROOT: "",
     OPENCLAW_VITEST_FS_MODULE_CACHE_PATH: "",
@@ -152,7 +142,7 @@ function ciEnv(
           "test/vitest/vitest.tooling.config.ts",
           ...(repeatSpec && index === 0 ? ["test/vitest/vitest.tooling-isolated.config.ts"] : []),
         ],
-        includePatterns: [fixture.probe],
+        includePatterns: [probe],
         shard_name,
       })),
     ),
@@ -176,9 +166,7 @@ it.runIf(process.platform !== "win32").for([
       const fixture = createCiProbe(directory);
       const temp = path.join(directory, "tmp");
       fs.mkdirSync(temp);
-      const groupOwnerModule = pathToFileURL(
-        path.join(root, "scripts/vitest-process-group.mts"),
-      ).href;
+      const groupOwner = pathToFileURL(path.join(root, "scripts/vitest-process-group.mts")).href;
       const capability = shared
         ? undefined
         : writeFixture(
@@ -186,15 +174,16 @@ it.runIf(process.platform !== "win32").for([
             "capability.mjs",
             `import {registerHooks} from 'node:module';
         registerHooks({load(url, context, nextLoad) {
-          if (url === ${JSON.stringify(groupOwnerModule)}) return {
+          if (url === ${JSON.stringify(groupOwner)}) return {
             format:'module',shortCircuit:true,
-            source:${JSON.stringify(`export * from ${JSON.stringify(groupOwnerModule + "?fixture-original")}; export function shouldUseDetachedVitestProcessGroup() { return false; }`)},
+            source:${JSON.stringify(`export * from ${JSON.stringify(groupOwner + "?fixture-original")}; export function shouldUseDetachedVitestProcessGroup() { return false; }`)},
           };
           return nextLoad(url, context);
         }});`,
           );
       const env = {
-        ...ciEnv(fixture, parallelism, parallelism === 1),
+        ...ciEnv(fixture.probe, parallelism, parallelism === 1),
+        NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import=${pathToFileURL(fixture.plannerPreload).href}`,
         TMPDIR: temp,
         TMP: temp,
         TEMP: temp,
@@ -226,15 +215,12 @@ it.runIf(process.platform !== "win32").for([
         const borrowerCount = parallelism === 1 ? 3 : 2;
         expect(observations).toHaveLength(borrowerCount);
         expect(new Set(observations.map(({ pid }) => pid)).size).toBe(borrowerCount);
-        // A fork worker adds a Vitest parent below the CI group's project runner.
-        expect(new Set(observations.map(({ groupOwner }) => groupOwner)).size).toBe(2);
-        expect([...new Set(observations.map(({ group }) => group))].toSorted()).toEqual([
-          "first-group",
-          "second-group",
-        ]);
+        expect(new Set(observations.map(({ planner }) => planner)).size).toBe(2);
         for (const group of ["first-group", "second-group"]) {
-          const owners = observations.filter((entry) => entry.group === group);
-          expect(new Set(owners.map(({ groupOwner }) => groupOwner)).size).toBe(1);
+          const members = observations.filter((observation) => observation.group === group);
+          expect(members).toHaveLength(group === "first-group" && parallelism === 1 ? 2 : 1);
+          expect(new Set(members.map(({ planner }) => planner)).size).toBe(1);
+          expect(members[0]!.planner).toBeGreaterThan(0);
         }
         expect(new Set(observations.map(({ inputDigest }) => inputDigest)).size).toBe(1);
         const generations = observations.map(({ generation }) => generation);
@@ -257,10 +243,9 @@ it.runIf(process.platform !== "win32").for([
       } finally {
         const observations = fs.existsSync(fixture.observationsFile) ? fixture.read() : [];
         await Promise.all(
-          observations.flatMap(({ pid, parent, groupOwner }) => [
+          observations.flatMap(({ pid, parent }) => [
             waitForDead(pid, 5_000),
             waitForDead(parent, 5_000),
-            waitForDead(groupOwner, 5_000),
           ]),
         );
         for (const run of new Set(observations.map(({ generation }) => generation))) {
@@ -301,7 +286,7 @@ it
     const { node } = workerArtifacts.createFixtureCommands();
     const directory = workerArtifacts.fixtureDirectory();
     const fixture = createCiProbe(directory, true, claim === "temporary" ? undefined : claim);
-    const env = ciEnv(fixture, 2);
+    const env = ciEnv(fixture.probe, 2);
     // Deliberate TMP claims stay inside this fixture, never the enclosing test's owner.
     const temp = path.join(directory, "tmp");
     fs.mkdirSync(temp);
@@ -318,11 +303,7 @@ it
       const second = observations.find(({ group }) => group === "second-group")!;
       expect(observations).toHaveLength(2);
       expect(new Set(observations.map(({ generation }) => generation)).size).toBe(1);
-      await Promise.all([
-        waitForDead(first.pid, 5_000),
-        waitForDead(first.parent, 5_000),
-        waitForDead(first.groupOwner, 5_000),
-      ]);
+      await Promise.all([waitForDead(first.pid, 5_000), waitForDead(first.parent, 5_000)]);
       expect(isProcessAlive(second.pid)).toBe(true);
       expect(fs.existsSync(generationDirectory(first.generation))).toBe(true);
       expect(fs.existsSync(first.includeFile)).toBe(true);
@@ -360,10 +341,9 @@ it
       await running;
       const observations = fs.existsSync(fixture.observationsFile) ? fixture.read() : [];
       await Promise.all(
-        observations.flatMap(({ pid, parent, groupOwner }) => [
+        observations.flatMap(({ pid, parent }) => [
           waitForDead(pid, 5_000),
           waitForDead(parent, 5_000),
-          waitForDead(groupOwner, 5_000),
         ]),
       );
       for (const run of new Set(observations.map(({ generation }) => generation))) {
